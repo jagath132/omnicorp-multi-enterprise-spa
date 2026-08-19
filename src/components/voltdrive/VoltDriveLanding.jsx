@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { voltdriveData } from '../../data/businessData';
+import { VoltDriveLogin } from './VoltDriveLogin';
 import { 
   Zap, 
   Car, 
@@ -19,11 +20,13 @@ import {
   TrendingUp, 
   DollarSign,
   Fuel,
-  Leaf
+  Leaf,
+  LogIn
 } from 'lucide-react';
 
 export const VoltDriveLanding = () => {
   const { navigateTo, addToast } = useAuth();
+  const [showLoginView, setShowLoginView] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All Vehicles');
   const [testDriveModal, setTestDriveModal] = useState(false);
   const [selectedVehicleForDrive, setSelectedVehicleForDrive] = useState(voltdriveData.vehicles[0]);
@@ -72,6 +75,10 @@ export const VoltDriveLanding = () => {
   const totalMonthlyFleet = monthlyPerVehicle * fleetSize;
   const annualFuelSavings = Math.round(fleetSize * 3200); // approx $3,200 saved per EV/year vs petrol
 
+  if (showLoginView) {
+    return <VoltDriveLogin onBackToShowroom={() => setShowLoginView(false)} />;
+  }
+
   return (
     <div className="min-h-screen pb-24 animate-in fade-in duration-300 bg-slate-950 text-slate-100 font-sans">
       {/* 1. VoltDrive Top Telematics Bar */}
@@ -85,16 +92,17 @@ export const VoltDriveLanding = () => {
           </div>
 
           <div className="flex items-center gap-4 text-slate-400">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 hidden md:flex">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-slate-300 font-medium">120 Superchargers Online</span>
             </div>
+
             <button
               onClick={() => navigateTo('hub')}
               className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Executive Hub</span>
+              <span>Back to Hub</span>
             </button>
           </div>
         </div>

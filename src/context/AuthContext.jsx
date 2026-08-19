@@ -17,19 +17,16 @@ export const AuthProvider = ({ children }) => {
       email: 'alexander.s@omnicorpgroup.com',
       role: 'Group Chairman & Chief Executive',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-      isLoggedIn: true,
+      isLoggedIn: false,
       lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
   });
 
-  // Business-specific sessions
-  const [businessSessions, setBusinessSessions] = useState(() => {
-    const saved = localStorage.getItem('omnicorp_business_sessions');
-    return saved ? JSON.parse(saved) : {
-      hospital: { isLoggedIn: true, role: 'Chief Medical Officer / Owner', email: 'chief.doctor@auracare.med' },
-      ecommerce: { isLoggedIn: true, role: 'Founder & E-Commerce Director', email: 'executive@nextrend.store' },
-      voltdrive: { isLoggedIn: true, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
-    };
+  // Business-specific sessions (Requires division owner login first before website access)
+  const [businessSessions, setBusinessSessions] = useState({
+    hospital: { isLoggedIn: false, role: 'Chief Medical Officer / Owner', email: 'chief.doctor@auracare.med' },
+    ecommerce: { isLoggedIn: false, role: 'Founder & E-Commerce Director', email: 'executive@nextrend.store' },
+    voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
   });
 
   // Active Auth Modal state
@@ -119,6 +116,15 @@ export const AuthProvider = ({ children }) => {
 
   // Master Login / Logout
   const masterLogin = (email) => {
+    // Always reset all business sessions on fresh master login
+    const freshSessions = {
+      hospital: { isLoggedIn: false, role: 'Chief Medical Officer / Owner', email: 'chief.doctor@auracare.med' },
+      ecommerce: { isLoggedIn: false, role: 'Founder & E-Commerce Director', email: 'executive@nextrend.store' },
+      voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
+    };
+    setBusinessSessions(freshSessions);
+    localStorage.removeItem('omnicorp_business_sessions');
+
     const updated = {
       name: 'Alexander Sterling',
       email: email || 'alexander.s@omnicorpgroup.com',
@@ -129,14 +135,26 @@ export const AuthProvider = ({ children }) => {
     };
     setMasterUser(updated);
     localStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
+    setCurrentView('hub');
+    localStorage.setItem('omnicorp_view', 'hub');
     addToast('Welcome back, Executive Chairman!', 'success');
   };
 
   const masterLogout = () => {
+    // Reset all individual business sessions on logout
+    const freshSessions = {
+      hospital: { isLoggedIn: false, role: 'Chief Medical Officer / Owner', email: 'chief.doctor@auracare.med' },
+      ecommerce: { isLoggedIn: false, role: 'Founder & E-Commerce Director', email: 'executive@nextrend.store' },
+      voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
+    };
+    setBusinessSessions(freshSessions);
+    localStorage.removeItem('omnicorp_business_sessions');
+
     const updated = { ...masterUser, isLoggedIn: false };
     setMasterUser(updated);
     localStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
     setCurrentView('hub');
+    localStorage.setItem('omnicorp_view', 'hub');
     addToast('Executive session ended.', 'info');
   };
 

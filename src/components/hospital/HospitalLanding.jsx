@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { hospitalData } from '../../data/businessData';
+import { HospitalLogin } from './HospitalLogin';
 import { 
   Activity, 
   HeartPulse, 
@@ -14,7 +15,9 @@ import {
   CheckCircle2, 
   Sparkles, 
   ChevronRight,
-  X
+  X,
+  User,
+  LogIn
 } from 'lucide-react';
 
 const deptIcons = {
@@ -28,6 +31,7 @@ const deptIcons = {
 
 export const HospitalLanding = () => {
   const { navigateTo, addToast } = useAuth();
+  const [showLoginView, setShowLoginView] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [bookingForm, setBookingForm] = useState({
     patientName: '',
@@ -48,6 +52,10 @@ export const HospitalLanding = () => {
     }, 2500);
   };
 
+  if (showLoginView) {
+    return <HospitalLogin onBackToHospital={() => setShowLoginView(false)} />;
+  }
+
   return (
     <div className="min-h-screen pb-24 animate-in fade-in duration-300">
       {/* Hospital Top Emergency & Direct Bar */}
@@ -61,16 +69,26 @@ export const HospitalLanding = () => {
           </div>
 
           <div className="flex items-center gap-4 text-slate-400">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 hidden md:flex">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="text-slate-300 font-medium">ER Beds: 12 Available</span>
             </div>
+            
+            {/* Patient & Staff Portal Login Button */}
+            <button
+              onClick={() => setShowLoginView(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-md transition-all"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Portal Login</span>
+            </button>
+
             <button
               onClick={() => navigateTo('hub')}
               className="flex items-center gap-1 text-teal-400 hover:text-teal-300 font-semibold transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Executive Hub</span>
+              <span>Back to Hub</span>
             </button>
           </div>
         </div>

@@ -31,15 +31,15 @@ import {
 export const EcommerceLanding = () => {
   const { navigateTo, addToast } = useAuth();
 
-  // Authentication State
+  // Authentication State (Default: Signed Out / Guest)
   const [customerUser, setCustomerUser] = useState(() => {
     const saved = localStorage.getItem('nextrend_customer_user');
     return saved ? JSON.parse(saved) : {
-      name: 'Alexander Sterling',
-      email: 'alexander.s@omnicorpgroup.com',
-      isLoggedIn: true,
-      primeMember: true,
-      cartCount: 2
+      name: null,
+      email: null,
+      isLoggedIn: false,
+      primeMember: false,
+      cartCount: 0
     };
   });
 
@@ -164,194 +164,201 @@ export const EcommerceLanding = () => {
 
   return (
     <div className="min-h-screen bg-[#0f1111] text-slate-100 font-sans pb-16">
-      {/* 1. AMAZON MAIN HEADER BAR */}
-      <header className="relative z-20 bg-[#131921] border-b border-slate-800 text-white select-none">
-        <div className="max-w-[1500px] mx-auto px-4 py-2 flex items-center justify-between gap-3 text-xs">
-          {/* Logo */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
-              className="flex items-center gap-1.5 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left group"
-            >
-              <div className="flex flex-col">
-                <div className="flex items-center font-heading font-black text-xl tracking-tight text-white leading-none">
-                  <span>nex</span><span className="text-[#febd69]">trend</span>
-                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">.store</span>
+      {/* Sticky Header Container for both Main Header & Sub-Nav (sticks below the top 64px main navbar) */}
+      <div className="sticky top-16 z-30 bg-[#131921] shadow-lg select-none">
+        {/* 1. AMAZON MAIN HEADER BAR */}
+        <header className="bg-[#131921] text-white border-b border-slate-800">
+          <div className="max-w-[1500px] mx-auto px-4 py-2 flex flex-col gap-2">
+            {/* Top row: Logo, Deliver To, Language, Account & Lists, Cart */}
+            <div className="flex items-center justify-between gap-3 text-xs w-full">
+              {/* Logo */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
+                  className="flex items-center gap-1.5 p-1 rounded-lg hover:ring-1 hover:ring-white transition-all text-left group"
+                >
+                  <div className="flex flex-col">
+                    <div className="flex items-center font-heading font-black text-lg sm:text-xl tracking-tight text-white leading-none">
+                      <span>nex</span><span className="text-[#febd69]">trend</span>
+                      <span className="text-[10px] text-slate-400 font-normal ml-0.5">.store</span>
+                    </div>
+                    {/* Curved smile arrow under logo */}
+                    <div className="w-16 h-1.5 bg-gradient-to-r from-transparent via-[#febd69] to-transparent rounded-full mt-0.5" />
+                  </div>
+                </button>
+              </div>
+
+              {/* Deliver To Location (Desktop Only) */}
+              <div className="hidden lg:flex items-center gap-1.5 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer shrink-0">
+                <MapPin className="w-4 h-4 text-slate-300 mt-1 shrink-0" />
+                <div className="leading-tight">
+                  <div className="text-[11px] text-slate-400">Deliver to {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'Guest'}</div>
+                  <div className="font-bold text-slate-100 text-xs">New York 10001</div>
                 </div>
-                {/* Curved smile arrow under logo */}
-                <div className="w-16 h-1.5 bg-gradient-to-r from-transparent via-[#febd69] to-transparent rounded-full mt-0.5" />
               </div>
-            </button>
-          </div>
 
-          {/* Deliver To Location */}
-          <div className="hidden lg:flex items-center gap-1.5 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer">
-            <MapPin className="w-4 h-4 text-slate-300 mt-1 shrink-0" />
-            <div className="leading-tight">
-              <div className="text-[11px] text-slate-400">Deliver to {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'Guest'}</div>
-              <div className="font-bold text-slate-100 text-xs">New York 10001</div>
-            </div>
-          </div>
+              {/* Amazon Search Bar (DESKTOP/TABLET - hidden on mobile) */}
+              <div className="hidden sm:flex flex-1 max-w-3xl flex items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69] bg-white">
+                {/* Category Dropdown */}
+                <select
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="h-full bg-slate-200 hover:bg-slate-300 text-slate-900 text-xs px-2.5 font-medium border-r border-slate-300 focus:outline-none cursor-pointer max-w-[130px] truncate"
+                >
+                  {ecommerceData.categories.map((dept, i) => (
+                    <option key={i} value={dept}>{dept}</option>
+                  ))}
+                </select>
 
-          {/* Amazon Search Bar */}
-          <div className="flex-1 max-w-3xl flex items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69]">
-            {/* Category Dropdown */}
-            <select
-              value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value)}
-              className="h-full bg-slate-200 hover:bg-slate-300 text-slate-900 text-xs px-2.5 font-medium border-r border-slate-300 focus:outline-none cursor-pointer hidden sm:block max-w-[130px] truncate"
-            >
-              {ecommerceData.categories.map((dept, i) => (
-                <option key={i} value={dept}>{dept}</option>
-              ))}
-            </select>
+                {/* Input */}
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search NexTrend Prime products, electronics, fashion..."
+                  className="flex-1 h-full px-3 bg-white text-slate-900 text-xs focus:outline-none"
+                />
 
-            {/* Input */}
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search NexTrend Prime products, electronics, fashion..."
-              className="flex-1 h-full px-3 bg-white text-slate-900 text-xs focus:outline-none"
-            />
-
-            {/* Orange Search Button */}
-            <button
-              onClick={() => {}}
-              className="h-full px-5 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
-              title="Search"
-            >
-              <Search className="w-4 h-4 text-slate-900" />
-            </button>
-          </div>
-
-          {/* Language Selector */}
-          <div className="hidden md:flex items-center gap-1 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer">
-            <span className="text-sm">🇺🇸</span>
-            <span className="font-bold text-xs">EN</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </div>
-
-          {/* Account & Lists (Amazon Hover/Click Dropdown) */}
-          <div className="relative" ref={accountRef}>
-            <button
-              onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-              className="flex flex-col items-start p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left"
-            >
-              <span className="text-[11px] text-slate-300 leading-tight">
-                Hello, {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'sign in'}
-              </span>
-              <div className="flex items-center gap-1 font-bold text-xs text-white leading-tight">
-                <span>Account & Lists</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                {/* Orange Search Button */}
+                <button
+                  onClick={() => {}}
+                  className="h-full px-5 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
+                  title="Search"
+                >
+                  <Search className="w-4 h-4 text-slate-900" />
+                </button>
               </div>
-            </button>
 
-            {/* Amazon Account Dropdown Menu */}
-            {accountMenuOpen && (
-              <div className="absolute right-0 mt-1 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                {/* Sign In CTA Banner */}
-                <div className="pb-4 border-b border-slate-800 text-center">
-                  {customerUser?.isLoggedIn ? (
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs">
-                          {customerUser.name.charAt(0)}
+              {/* Right Side Items: Language, Account, Cart */}
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+                {/* Language Selector (Desktop/Tablet Only) */}
+                <div className="hidden md:flex items-center gap-1 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer">
+                  <span className="text-sm">🇺🇸</span>
+                  <span className="font-bold text-xs">EN</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </div>
+
+                {/* Account & Lists */}
+                <div className="relative" ref={accountRef}>
+                  <button
+                    onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                    className="flex flex-col items-start p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left"
+                  >
+                    <span className="text-[10px] sm:text-[11px] text-slate-300 leading-tight">
+                      Hello, {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'sign in'}
+                    </span>
+                    <div className="flex items-center gap-0.5 sm:gap-1 font-bold text-xs text-white leading-tight">
+                      <span>Account & Lists</span>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                    </div>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {accountMenuOpen && (
+                    <div className="absolute right-0 mt-1 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                      {/* Sign In CTA Banner */}
+                      <div className="pb-4 border-b border-slate-800 text-center">
+                        {customerUser?.isLoggedIn ? (
+                          <div className="text-left">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs">
+                                {customerUser.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="font-bold text-white text-xs">{customerUser.name}</div>
+                                <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{customerUser.email}</div>
+                              </div>
+                            </div>
+                            <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#febd69]/10 text-[#febd69] border border-[#febd69]/20 text-[10px] font-bold">
+                              <Sparkles className="w-3 h-3" />
+                              <span>Prime Member</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <button
+                              onClick={() => { setShowSignInView(true); setAccountMenuOpen(false); }}
+                              className="w-full py-2 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] transition-all"
+                            >
+                              Sign in
+                            </button>
+                            <p className="text-[11px] text-slate-400 mt-2">
+                              New customer?{' '}
+                              <button
+                                onClick={() => { setShowSignInView(true); setAccountMenuOpen(false); }}
+                                className="text-amber-400 hover:underline"
+                              >
+                                Start here.
+                              </button>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-4 text-xs">
+                        <div>
+                          <h4 className="font-bold text-white mb-2">Your Lists</h4>
+                          <ul className="space-y-2 text-slate-400">
+                            <li className="hover:text-amber-400 cursor-pointer">Create a List</li>
+                            <li className="hover:text-amber-400 cursor-pointer">Find a List</li>
+                          </ul>
                         </div>
                         <div>
-                          <div className="font-bold text-white text-xs">{customerUser.name}</div>
-                          <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{customerUser.email}</div>
+                          <h4 className="font-bold text-white mb-2">Your Account</h4>
+                          <ul className="space-y-2 text-slate-400">
+                            <li className="hover:text-amber-400 cursor-pointer">Your Account</li>
+                            <li className="hover:text-amber-400 cursor-pointer">Your Orders</li>
+                            {customerUser?.isLoggedIn && (
+                              <li className="pt-2 border-t border-slate-800">
+                                <button onClick={handleLogout} className="text-rose-400 hover:text-rose-300 font-semibold w-full text-left">
+                                  Sign Out
+                                </button>
+                              </li>
+                            )}
+                          </ul>
                         </div>
                       </div>
-                      <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#febd69]/10 text-[#febd69] border border-[#febd69]/20 text-[10px] font-bold">
-                        <Sparkles className="w-3 h-3" />
-                        <span>Prime Member</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <button
-                        onClick={() => { setShowSignInView(true); setAccountMenuOpen(false); }}
-                        className="w-full py-2 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] transition-all"
-                      >
-                        Sign in
-                      </button>
-                      <p className="text-[11px] text-slate-400 mt-2">
-                        New customer?{' '}
-                        <button
-                          onClick={() => { setShowSignInView(true); setAccountMenuOpen(false); }}
-                          className="text-amber-400 hover:underline"
-                        >
-                          Start here.
-                        </button>
-                      </p>
                     </div>
                   )}
                 </div>
 
-                {/* Dropdown 2 Columns: Lists & Account */}
-                <div className="grid grid-cols-2 gap-4 py-3 text-xs border-b border-slate-800">
-                  <div>
-                    <h4 className="font-bold text-white mb-2 text-xs">Your Lists</h4>
-                    <ul className="space-y-1.5 text-slate-400 text-[11px]">
-                      <li className="hover:text-amber-400 cursor-pointer">Create a Wish List</li>
-                      <li className="hover:text-amber-400 cursor-pointer">Wish from Any Website</li>
-                      <li className="hover:text-amber-400 cursor-pointer">Baby & Wedding Registry</li>
-                    </ul>
+                {/* Cart Button */}
+                <button
+                  onClick={() => setCartOpen(true)}
+                  className="flex items-center gap-1 p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-white font-bold shrink-0"
+                >
+                  <div className="relative">
+                    <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                    <span className="absolute -top-1 -right-1 bg-[#febd69] text-slate-950 text-[10px] sm:text-[11px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
+                      {cartItemCount}
+                    </span>
                   </div>
-
-                  <div>
-                    <h4 className="font-bold text-white mb-2 text-xs">Your Account</h4>
-                    <ul className="space-y-1.5 text-slate-400 text-[11px]">
-                      <li className="hover:text-amber-400 cursor-pointer" onClick={() => addToast('Navigating to Your Orders', 'info')}>Your Orders</li>
-                      <li className="hover:text-amber-400 cursor-pointer">Your Recommendations</li>
-                      <li className="hover:text-amber-400 cursor-pointer">Prime Membership</li>
-                      <li className="hover:text-amber-400 cursor-pointer">Keep Shopping For</li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Sign Out / Switch Session */}
-                {customerUser?.isLoggedIn && (
-                  <div className="pt-2">
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left text-xs text-rose-400 hover:bg-rose-500/10 p-2 rounded-xl transition-colors font-medium"
-                    >
-                      Sign Out of NexTrend
-                    </button>
-                  </div>
-                )}
+                  <span className="text-xs font-bold hidden sm:inline">Cart</span>
+                </button>
               </div>
-            )}
-          </div>
-
-          {/* Returns & Orders */}
-          <button
-            onClick={() => addToast('Viewing your recent Amazon & NexTrend orders', 'info')}
-            className="hidden sm:flex flex-col items-start p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left"
-          >
-            <span className="text-[11px] text-slate-300 leading-tight">Returns</span>
-            <span className="font-bold text-xs text-white leading-tight">& Orders</span>
-          </button>
-
-          {/* Amazon Cart Button */}
-          <button
-            onClick={() => setCartOpen(true)}
-            className="flex items-center gap-1.5 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-white font-bold"
-          >
-            <div className="relative">
-              <ShoppingCart className="w-7 h-7 text-white" />
-              <span className="absolute -top-1 right-1 bg-[#febd69] text-slate-950 text-[11px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
-                {cartItemCount}
-              </span>
             </div>
-            <span className="text-xs font-bold hidden sm:inline">Cart</span>
-          </button>
-        </div>
+
+            {/* Bottom row: Search Bar (MOBILE ONLY - hidden on sm and up) */}
+            <div className="flex sm:hidden w-full items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69] bg-white">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search NexTrend..."
+                className="flex-1 h-full px-3 bg-white text-slate-900 text-xs focus:outline-none"
+              />
+              <button
+                onClick={() => {}}
+                className="h-full px-4 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
+                title="Search"
+              >
+                <Search className="w-4 h-4 text-slate-900" />
+              </button>
+            </div>
+          </div>
+        </header>
 
         {/* 2. SUB-NAV MENU BAR */}
-        <div className="bg-[#232f3e] px-4 py-1.5 flex items-center justify-between text-xs text-slate-200 border-t border-slate-700/60 overflow-x-auto scrollbar-none">
+        <div className="bg-[#232f3e] px-4 py-1.5 flex items-center justify-between text-xs text-slate-200 border-t border-slate-700/60 overflow-x-auto scrollbar-none shadow-md">
           <div className="flex items-center gap-4 shrink-0">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -393,7 +400,7 @@ export const EcommerceLanding = () => {
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* 3. HERO PROMOTIONAL BANNER (AMAZON CAROUSEL) */}
       <div className="relative max-w-[1500px] mx-auto overflow-hidden">

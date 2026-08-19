@@ -185,7 +185,7 @@ export const ecommerceData = {
         { label: 'Gaming Mics', image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&q=80&w=300' },
         { label: 'Hi-Fi Audio', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=300' },
         { label: 'Monitors', image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&q=80&w=300' },
-        { label: 'Chairs', image: 'https://images.unsplash.com/photo-1580481077197-2a6288863fba?auto=format&fit=crop&q=80&w=300' }
+        { label: 'Chairs', image: 'https://images.unsplash.com/photo-1598550476439-6847785fcea6?auto=format&fit=crop&q=80&w=300' }
       ],
       linkText: 'Shop gaming & entertainment'
     }

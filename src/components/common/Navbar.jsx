@@ -48,12 +48,13 @@ export const Navbar = () => {
 
           {/* Right: Master Executive Profile Widget */}
           <div className="relative" ref={dropdownRef}>
+            {/* Minimalist Rounded Pill Trigger */}
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className={`flex items-center gap-3 px-3 py-1.5 rounded-2xl border transition-all duration-200 ${
+              className={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border transition-all duration-200 ${
                 profileOpen
-                  ? 'bg-slate-800/90 border-blue-500/50 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30'
-                  : 'bg-slate-900/80 hover:bg-slate-800/80 border-slate-700/70 hover:border-slate-600'
+                  ? 'bg-slate-800 border-blue-500/60 shadow-lg shadow-blue-500/15 ring-1 ring-blue-500/30'
+                  : 'bg-slate-900/90 hover:bg-slate-800/90 border-slate-700/80 hover:border-slate-600'
               }`}
             >
               <div className="relative">
@@ -64,27 +65,23 @@ export const Navbar = () => {
                     e.currentTarget.onerror = null;
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200';
                   }}
-                  className="w-8 h-8 rounded-xl object-cover ring-2 ring-blue-500/40 bg-slate-800"
+                  className="w-7 h-7 rounded-full object-cover ring-1 ring-blue-500/40 bg-slate-800"
                 />
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-slate-900 rounded-full" />
+                <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-400 border border-slate-900 rounded-full" />
               </div>
 
-              <div className="text-left hidden sm:block">
-                <div className="text-xs font-bold text-white leading-tight flex items-center gap-1.5">
-                  <span>{masterUser.name}</span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                </div>
-                <div className="text-[10px] text-slate-400 font-medium leading-tight">Executive Admin</div>
-              </div>
+              <span className="text-xs font-bold text-white hidden sm:inline">
+                {masterUser.name}
+              </span>
 
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${profileOpen ? 'rotate-180 text-blue-400' : ''}`} />
             </button>
 
-            {/* Redesigned Clean Profile Dropdown */}
+            {/* Clean Executive Profile Dropdown Card */}
             {profileOpen && (
-              <div className="absolute right-0 mt-3 w-72 rounded-3xl bg-slate-900 border border-slate-700/80 shadow-2xl backdrop-blur-2xl p-4 z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
-                {/* Header User Card */}
-                <div className="flex items-center gap-3.5 pb-3.5 border-b border-slate-800">
+              <div className="absolute right-0 mt-2.5 w-72 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-2xl p-4 z-[100] animate-in fade-in slide-in-from-top-2 duration-150">
+                {/* Profile Identity Block */}
+                <div className="flex items-center gap-3 pb-3.5 border-b border-slate-800">
                   <div className="relative shrink-0">
                     <img
                       src={masterUser.avatar}
@@ -93,31 +90,31 @@ export const Navbar = () => {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200';
                       }}
-                      className="w-12 h-12 rounded-2xl object-cover ring-2 ring-blue-500/40"
+                      className="w-11 h-11 rounded-full object-cover ring-2 ring-blue-500/30"
                     />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full" />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border border-slate-900 rounded-full" />
                   </div>
 
-                  <div className="overflow-hidden">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-heading font-bold text-white text-sm truncate">{masterUser.name}</span>
-                      <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <div className="overflow-hidden min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="font-heading font-bold text-white text-xs truncate">{masterUser.name}</span>
+                      <ShieldCheck className="w-3 h-3 text-blue-400 shrink-0" />
                     </div>
-                    <p className="text-xs text-slate-400 truncate mt-0.5">{masterUser.email}</p>
-                    <span className="inline-block text-[10px] font-semibold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full mt-1.5">
+                    <p className="text-[11px] text-slate-400 truncate mt-0.5">{masterUser.email}</p>
+                    <div className="mt-1 inline-block text-[9px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
                       {masterUser.role}
-                    </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Action Footer */}
-                <div className="pt-3.5">
+                {/* Direct Action Button: Sign Out */}
+                <div className="pt-3">
                   <button
                     onClick={() => { masterLogout(); setProfileOpen(false); }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/30 transition-all duration-200 active:scale-[0.98]"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 hover:border-rose-600 transition-all duration-200 active:scale-[0.98]"
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    <span>End Master Session</span>
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </div>
