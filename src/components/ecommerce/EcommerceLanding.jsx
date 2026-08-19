@@ -25,11 +25,12 @@ import {
   Heart,
   HelpCircle,
   Truck,
-  ArrowRight
+  ArrowRight,
+  LogOut
 } from 'lucide-react';
 
 export const EcommerceLanding = () => {
-  const { navigateTo, addToast } = useAuth();
+  const { navigateTo, addToast, logoutFromBusiness } = useAuth();
 
   // Authentication State (Default: Signed Out / Guest)
   const [customerUser, setCustomerUser] = useState(() => {
@@ -392,11 +393,11 @@ export const EcommerceLanding = () => {
 
           <div className="flex items-center gap-4 shrink-0">
             <button
-              onClick={() => navigateTo('hub')}
-              className="flex items-center gap-1 text-slate-300 hover:text-amber-400 py-1 px-2 rounded hover:ring-1 hover:ring-white transition-all font-semibold"
+              onClick={() => logoutFromBusiness('ecommerce')}
+              className="flex items-center gap-1.5 text-slate-300 hover:text-[#febd69] py-1 px-2 rounded hover:ring-1 hover:ring-white transition-all font-semibold"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Executive Hub</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
           </div>
         </div>

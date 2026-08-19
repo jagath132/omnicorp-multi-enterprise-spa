@@ -17,7 +17,8 @@ import {
   ChevronRight,
   X,
   User,
-  LogIn
+  LogIn,
+  LogOut
 } from 'lucide-react';
 
 const deptIcons = {
@@ -30,7 +31,7 @@ const deptIcons = {
 };
 
 export const HospitalLanding = () => {
-  const { navigateTo, addToast } = useAuth();
+  const { navigateTo, addToast, logoutFromBusiness } = useAuth();
   const [showLoginView, setShowLoginView] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [bookingForm, setBookingForm] = useState({
@@ -84,11 +85,11 @@ export const HospitalLanding = () => {
             </button>
 
             <button
-              onClick={() => navigateTo('hub')}
-              className="flex items-center gap-1 text-teal-400 hover:text-teal-300 font-semibold transition-colors"
+              onClick={() => logoutFromBusiness('hospital')}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-rose-400 font-semibold transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Hub</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
           </div>
         </div>

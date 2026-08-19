@@ -110,8 +110,8 @@ export const AuthProvider = ({ children }) => {
       }
     };
     setBusinessSessions(updatedSessions);
-    localStorage.setItem('omnicorp_business_sessions', JSON.stringify(updatedSessions));
-    addToast(`Logged out from ${businesses.find(b => b.id === businessId)?.name}`, 'warning');
+    navigateTo('hub');
+    addToast(`Signed out of ${businesses.find(b => b.id === businessId)?.name}`, 'warning');
   };
 
   // Master Login / Logout

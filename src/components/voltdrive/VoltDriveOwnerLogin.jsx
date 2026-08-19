@@ -13,7 +13,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   KeyRound,
-  Car
+  Car,
+  LogOut
 } from 'lucide-react';
 
 const STATS = [
@@ -122,7 +123,7 @@ export const VoltDriveOwnerLogin = ({ onLoginSuccess, onBack }) => {
           {/* Back button */}
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors mb-8"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-cyan-300 transition-colors mb-8"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Hub</span>

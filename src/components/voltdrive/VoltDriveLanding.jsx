@@ -21,11 +21,12 @@ import {
   DollarSign,
   Fuel,
   Leaf,
-  LogIn
+  LogIn,
+  LogOut
 } from 'lucide-react';
 
 export const VoltDriveLanding = () => {
-  const { navigateTo, addToast } = useAuth();
+  const { navigateTo, addToast, logoutFromBusiness } = useAuth();
   const [showLoginView, setShowLoginView] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All Vehicles');
   const [testDriveModal, setTestDriveModal] = useState(false);
@@ -98,11 +99,11 @@ export const VoltDriveLanding = () => {
             </div>
 
             <button
-              onClick={() => navigateTo('hub')}
-              className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold transition-colors"
+              onClick={() => logoutFromBusiness('voltdrive')}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-rose-400 font-semibold transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to Hub</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
