@@ -4,10 +4,20 @@
 
 :root {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, .font-heading {
   font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Fluid responsive media & performance */
+img {
+  max-width: 100%;
+  height: auto;
+  content-visibility: auto;
 }
 
 /* Glassmorphism Classes */
@@ -18,19 +28,12 @@ h1, h2, h3, h4, .font-heading {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.glass-panel-light {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
 .glass-card {
   background: rgba(30, 41, 59, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
@@ -40,8 +43,8 @@ h1, h2, h3, h4, .font-heading {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -66,8 +69,8 @@ h1, h2, h3, h4, .font-heading {
   box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.25);
 }
 
-.glow-garments {
-  box-shadow: 0 0 50px -10px rgba(245, 158, 11, 0.25);
+.glow-voltdrive {
+  box-shadow: 0 0 50px -10px rgba(6, 182, 212, 0.25);
 }
 
 .glow-hub {

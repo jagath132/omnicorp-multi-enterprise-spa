@@ -498,7 +498,7 @@ export const VoltDriveLanding = () => {
       {/* 7. BOOK TEST DRIVE / CHAUFFEUR MODAL */}
       {testDriveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="relative w-full max-w-lg bg-slate-900 border border-cyan-500/40 rounded-3xl p-6 shadow-2xl">
+          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900 border border-cyan-500/40 rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div>
                 <h3 className="font-bold text-white text-base">Schedule VIP Test Drive / Chauffeur</h3>
