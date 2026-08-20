@@ -10,7 +10,7 @@ export const businesses = [
     accentColor: 'from-teal-500 to-cyan-500',
     badgeBg: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
     iconName: 'Activity',
-    heroImage: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&q=80&w=1200',
+    heroImage: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1200',
     description: 'A 450-bed tertiary care healthcare network equipped with robotic surgical systems, 24/7 cardiac emergency triage, and comprehensive digital outpatient care.',
     credentials: {
       defaultEmail: 'chief.doctor@auracare.med',
@@ -34,7 +34,7 @@ export const businesses = [
     accentColor: 'from-purple-500 to-pink-500',
     badgeBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
     iconName: 'ShoppingBag',
-    heroImage: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&q=80&w=1200',
+    heroImage: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&q=80&w=1200',
     description: 'High-growth direct-to-consumer lifestyle and electronics brand with multi-channel fulfillment across 18 countries and 99.4% next-day delivery dispatch.',
     credentials: {
       defaultEmail: 'executive@nextrend.store',
@@ -58,7 +58,7 @@ export const businesses = [
     accentColor: 'from-cyan-500 to-blue-600',
     badgeBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
     iconName: 'Zap',
-    heroImage: 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=1200',
+    heroImage: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=1200',
     description: 'Flagship EV automotive showroom, corporate executive chauffeur mobility, and ultra-fast Megawatt commercial freight transport logistics.',
     credentials: {
       defaultEmail: 'fleet.director@voltdrive.com',

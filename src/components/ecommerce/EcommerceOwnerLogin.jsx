@@ -48,6 +48,17 @@ export const EcommerceOwnerLogin = ({ onLoginSuccess, onBack }) => {
     setTimeout(() => {
       setIsLoading(false);
       addToast('Welcome, Founding Director. Store access granted.', 'success');
+      
+      // Auto sign-in the customer session on the e-commerce storefront
+      const userData = {
+        name: 'Alexander Sterling',
+        email: 'alexander.s@omnicorpgroup.com',
+        isLoggedIn: true,
+        primeMember: true,
+        cartCount: 1
+      };
+      localStorage.setItem('nextrend_customer_user', JSON.stringify(userData));
+
       if (onLoginSuccess) onLoginSuccess();
     }, 700);
   };

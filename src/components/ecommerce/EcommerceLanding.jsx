@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ecommerceData } from '../../data/businessData';
-import { AmazonSignIn } from './AmazonSignIn';
 import { 
   Search, 
   ShoppingCart, 
@@ -44,10 +43,22 @@ export const EcommerceLanding = () => {
     };
   });
 
-  const [showSignInView, setShowSignInView] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const accountRef = useRef(null);
+
+  const handleAutoCustomerLogin = () => {
+    const userData = {
+      name: 'Alexander Sterling',
+      email: 'alexander.s@omnicorpgroup.com',
+      isLoggedIn: true,
+      primeMember: true,
+      cartCount: 1
+    };
+    localStorage.setItem('nextrend_customer_user', JSON.stringify(userData));
+    setCustomerUser(userData);
+    addToast('Welcome back, Alexander Sterling! Successfully signed in.', 'success');
+  };
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,6 +80,37 @@ export const EcommerceLanding = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutComplete, setCheckoutComplete] = useState(false);
 
+  // New Payment, Orders, and Tracking State
+  const [viewMode, setViewMode] = useState('store'); // 'store' | 'checkout' | 'orders' | 'track'
+  const [orders, setOrders] = useState(() => {
+    const saved = localStorage.getItem('nextrend_orders');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [];
+  });
+  
+  const [activeOrderForTracking, setActiveOrderForTracking] = useState(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState(null);
+  const [returnState, setReturnState] = useState({}); // { [orderId]: { open: bool, reason: string, submitted: bool } }
+  
+  const [shippingForm, setShippingForm] = useState({
+    fullName: 'Alexander Sterling',
+    address: '42 Wallaby Way',
+    city: 'Sydney',
+    zip: '2000',
+    phone: '+1 (555) 019-2834',
+    cardName: 'Alexander Sterling',
+    cardNumber: '4111 2222 3333 4444',
+    cardExpiry: '12/29',
+    cardCvv: '007',
+    paymentMethod: 'card' // 'card' | 'wallet' | 'cod'
+  });
+
   // Auto rotate banners
   useEffect(() => {
     const timer = setInterval(() => {
@@ -88,16 +130,33 @@ export const EcommerceLanding = () => {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  const handleLoginSuccess = (user) => {
-    setCustomerUser(user);
-    setShowSignInView(false);
-  };
+  // Purge stale mock orders from localStorage (old hardcoded Smartwatch order)
+  useEffect(() => {
+    const saved = localStorage.getItem('nextrend_orders');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const hasStaleOrder = parsed.some(o =>
+          o.items && o.items.some(item => item.id === 'prod-2')
+        );
+        if (hasStaleOrder) {
+          localStorage.removeItem('nextrend_orders');
+          setOrders([]);
+        }
+      } catch (e) {
+        localStorage.removeItem('nextrend_orders');
+        setOrders([]);
+      }
+    }
+  }, []);
+
 
   const handleLogout = () => {
     const guestUser = { name: null, email: null, isLoggedIn: false, primeMember: false };
     setCustomerUser(guestUser);
     localStorage.removeItem('nextrend_customer_user');
     setAccountMenuOpen(false);
+    setViewMode('store');
     addToast('Signed out of NexTrend Store', 'info');
   };
 
@@ -132,17 +191,120 @@ export const EcommerceLanding = () => {
 
   const handleCheckout = () => {
     if (!customerUser?.isLoggedIn) {
-      setShowSignInView(true);
-      addToast('Please sign in to proceed with Prime 1-Click checkout', 'info');
-      return;
+      const userData = {
+        name: 'Alexander Sterling',
+        email: 'alexander.s@omnicorpgroup.com',
+        isLoggedIn: true,
+        primeMember: true,
+        cartCount: 1
+      };
+      localStorage.setItem('nextrend_customer_user', JSON.stringify(userData));
+      setCustomerUser(userData);
+      addToast('Welcome back, Alexander Sterling! Successfully signed in.', 'success');
     }
+    setCartOpen(false);
+    setViewMode('checkout');
+    addToast('Entering secure Checkout...', 'info');
+  };
+
+  const handlePlaceOrder = (e) => {
+    e.preventDefault();
     setCheckoutComplete(true);
-    addToast('Order placed successfully! Tracking link sent to your email.', 'success');
+    addToast('Processing payment authorization...', 'info');
+
     setTimeout(() => {
+      const newOrder = {
+        id: `NT-${Math.floor(100000 + Math.random() * 900000)}-PC`,
+        date: new Date().toISOString().split('T')[0],
+        total: cartTotal,
+        status: 'Ordered',
+        estDelivery: 'In 2 days by 8 PM',
+        trackingProgress: 20,
+        timeline: [
+          { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: 'Ordered', detail: 'Order placed, payment authorization successful' }
+        ],
+        items: [...cart]
+      };
+      
+      const updatedOrders = [newOrder, ...orders];
+      setOrders(updatedOrders);
+      localStorage.setItem('nextrend_orders', JSON.stringify(updatedOrders));
+      
       setCart([]);
       setCheckoutComplete(false);
-      setCartOpen(false);
-    }, 2500);
+      setViewMode('orders');
+      addToast('Order placed successfully! Thank you for shopping with NexTrend.', 'success');
+    }, 1500);
+  };
+
+  const handleAdvanceDelivery = (orderId) => {
+    const updated = orders.map(o => {
+      if (o.id === orderId) {
+        let nextStatus = o.status;
+        let progress = o.trackingProgress;
+        let detail = '';
+        
+        if (o.status === 'Ordered') {
+          nextStatus = 'Packed';
+          progress = 40;
+          detail = 'Package processed and packed at NexTrend fulfillment center';
+        } else if (o.status === 'Packed') {
+          nextStatus = 'In Transit';
+          progress = 70;
+          detail = 'Package is on the way to the delivery address';
+        } else if (o.status === 'In Transit') {
+          nextStatus = 'Out for Delivery';
+          progress = 90;
+          detail = 'Courier has loaded the package and is out for delivery';
+        } else if (o.status === 'Out for Delivery') {
+          nextStatus = 'Delivered';
+          progress = 100;
+          detail = 'Package delivered at front door. Signature verified';
+        }
+        
+        if (nextStatus !== o.status) {
+          const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const updatedTimeline = [{ time: now, status: nextStatus, detail }, ...o.timeline];
+          const updatedOrder = { ...o, status: nextStatus, trackingProgress: progress, timeline: updatedTimeline };
+          
+          if (activeOrderForTracking?.id === orderId) {
+            setActiveOrderForTracking(updatedOrder);
+          }
+          addToast(`Shipment status advanced: ${nextStatus}!`, 'info');
+          return updatedOrder;
+        }
+      }
+      return o;
+    });
+    setOrders(updated);
+    localStorage.setItem('nextrend_orders', JSON.stringify(updated));
+  };
+
+  const handleCancelOrder = (orderId) => {
+    const updated = orders.filter(o => o.id !== orderId);
+    setOrders(updated);
+    localStorage.setItem('nextrend_orders', JSON.stringify(updated));
+    setCancelConfirmId(null);
+    if (activeOrderForTracking?.id === orderId) {
+      setActiveOrderForTracking(null);
+      setViewMode('orders');
+    }
+    addToast('Order cancelled successfully. Refund will be processed in 3–5 business days.', 'info');
+  };
+
+  const handleReturnOrder = (orderId) => {
+    const reason = returnState[orderId]?.reason || '';
+    if (!reason) {
+      addToast('Please select a return reason before submitting.', 'error');
+      return;
+    }
+    const updated = orders.map(o =>
+      o.id === orderId ? { ...o, status: 'Return Requested', returnReason: reason } : o
+    );
+    setOrders(updated);
+    localStorage.setItem('nextrend_orders', JSON.stringify(updated));
+    setReturnState(prev => ({ ...prev, [orderId]: { ...prev[orderId], submitted: true } }));
+    addToast('Return request submitted! A pickup will be scheduled within 24 hours.', 'success');
   };
 
   // Filtered Products
@@ -153,208 +315,219 @@ export const EcommerceLanding = () => {
     return matchesCategory && matchesDept && matchesSearch;
   });
 
-  // If user requested full Amazon Sign-In page
-  if (showSignInView) {
-    return (
-      <AmazonSignIn
-        onLoginSuccess={handleLoginSuccess}
-        onBackToStore={() => setShowSignInView(false)}
-      />
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-[#0f1111] text-slate-100 font-sans pb-16">
-      {/* Sticky Header Container for both Main Header & Sub-Nav (sticks below the top 64px main navbar) */}
-      <div className="sticky top-16 z-30 bg-[#131921] shadow-lg select-none">
-        {/* 1. AMAZON MAIN HEADER BAR */}
-        <header className="bg-[#131921] text-white border-b border-slate-800">
-          <div className="max-w-[1500px] mx-auto px-4 py-2 flex flex-col gap-2">
-            {/* Top row: Logo, Deliver To, Language, Account & Lists, Cart */}
-            <div className="flex items-center justify-between gap-3 text-xs w-full">
-              {/* Logo */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
-                  className="flex items-center gap-1.5 p-1 rounded-lg hover:ring-1 hover:ring-white transition-all text-left group"
-                >
-                  <div className="flex flex-col">
-                    <div className="flex items-center font-heading font-black text-lg sm:text-xl tracking-tight text-white leading-none">
-                      <span>nex</span><span className="text-[#febd69]">trend</span>
-                      <span className="text-[10px] text-slate-400 font-normal ml-0.5">.store</span>
-                    </div>
-                    {/* Curved smile arrow under logo */}
-                    <div className="w-16 h-1.5 bg-gradient-to-r from-transparent via-[#febd69] to-transparent rounded-full mt-0.5" />
-                  </div>
-                </button>
+    <div className="min-h-screen pb-24 bg-slate-950 text-slate-100 font-sans selection:bg-[#febd69] selection:text-slate-950">
+      
+      {/* 1. AMAZON DOCK (Sticky Store Header) */}
+      <div className="sticky top-0 z-40 w-full flex flex-col shadow-md">
+        {/* Main Nav Header */}
+        <header className="bg-[#131921] text-white px-4 py-2 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-4 h-14">
+            
+            {/* Logo Section */}
+            <button 
+              onClick={() => { setViewMode('store'); setActiveCategory('All'); }}
+              className="flex items-center gap-1.5 p-1 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left shrink-0"
+            >
+              <div className="flex items-end">
+                <span className="font-heading font-black text-lg sm:text-xl tracking-tight text-white leading-none">nex</span>
+                <span className="font-heading font-black text-lg sm:text-xl tracking-tight text-[#febd69] leading-none">trend</span>
               </div>
+              <span className="text-[10px] font-bold text-slate-400 mt-1.5 hidden md:inline">.store</span>
+            </button>
 
-              {/* Deliver To Location (Desktop Only) */}
-              <div className="hidden lg:flex items-center gap-1.5 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer shrink-0">
-                <MapPin className="w-4 h-4 text-slate-300 mt-1 shrink-0" />
-                <div className="leading-tight">
-                  <div className="text-[11px] text-slate-400">Deliver to {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'Guest'}</div>
-                  <div className="font-bold text-slate-100 text-xs">New York 10001</div>
-                </div>
-              </div>
-
-              {/* Amazon Search Bar (DESKTOP/TABLET - hidden on mobile) */}
-              <div className="hidden sm:flex flex-1 max-w-3xl flex items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69] bg-white">
-                {/* Category Dropdown */}
-                <select
-                  value={selectedDept}
-                  onChange={(e) => setSelectedDept(e.target.value)}
-                  className="h-full bg-slate-200 hover:bg-slate-300 text-slate-900 text-xs px-2.5 font-medium border-r border-slate-300 focus:outline-none cursor-pointer max-w-[130px] truncate"
-                >
-                  {ecommerceData.categories.map((dept, i) => (
-                    <option key={i} value={dept}>{dept}</option>
-                  ))}
-                </select>
-
-                {/* Input */}
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search NexTrend Prime products, electronics, fashion..."
-                  className="flex-1 h-full px-3 bg-white text-slate-900 text-xs focus:outline-none"
-                />
-
-                {/* Orange Search Button */}
-                <button
-                  onClick={() => {}}
-                  className="h-full px-5 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
-                  title="Search"
-                >
-                  <Search className="w-4 h-4 text-slate-900" />
-                </button>
-              </div>
-
-              {/* Right Side Items: Language, Account, Cart */}
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
-                {/* Language Selector (Desktop/Tablet Only) */}
-                <div className="hidden md:flex items-center gap-1 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer">
-                  <span className="text-sm">🇺🇸</span>
-                  <span className="font-bold text-xs">EN</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </div>
-
-                {/* Account & Lists */}
-                <div className="relative" ref={accountRef}>
-                  <button
-                    onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                    className="flex flex-col items-start p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left"
-                  >
-                    <span className="text-[10px] sm:text-[11px] text-slate-300 leading-tight">
-                      Hello, {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'sign in'}
-                    </span>
-                    <div className="flex items-center gap-0.5 sm:gap-1 font-bold text-xs text-white leading-tight">
-                      <span>Account & Lists</span>
-                      <ChevronDown className="w-3 h-3 text-slate-400" />
-                    </div>
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {accountMenuOpen && (
-                    <div className="absolute right-0 mt-1 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                      {/* Sign In CTA Banner */}
-                      <div className="pb-4 border-b border-slate-800 text-center">
-                        {customerUser?.isLoggedIn ? (
-                          <div className="text-left">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs">
-                                {customerUser.name.charAt(0)}
-                              </div>
-                              <div>
-                                <div className="font-bold text-white text-xs">{customerUser.name}</div>
-                                <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{customerUser.email}</div>
-                              </div>
-                            </div>
-                            <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#febd69]/10 text-[#febd69] border border-[#febd69]/20 text-[10px] font-bold">
-                              <Sparkles className="w-3 h-3" />
-                              <span>Prime Member</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <button
-                              onClick={() => { setShowSignInView(true); setAccountMenuOpen(false); }}
-                              className="w-full py-2 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] transition-all"
-                            >
-                              Sign in
-                            </button>
-                            <p className="text-[11px] text-slate-400 mt-2">
-                              New customer?{' '}
-                              <button
-                                onClick={() => { setShowSignInView(true); setAccountMenuOpen(false); }}
-                                className="text-amber-400 hover:underline"
-                              >
-                                Start here.
-                              </button>
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 text-xs">
-                        <div>
-                          <h4 className="font-bold text-white mb-2">Your Lists</h4>
-                          <ul className="space-y-2 text-slate-400">
-                            <li className="hover:text-amber-400 cursor-pointer">Create a List</li>
-                            <li className="hover:text-amber-400 cursor-pointer">Find a List</li>
-                          </ul>
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-white mb-2">Your Account</h4>
-                          <ul className="space-y-2 text-slate-400">
-                            <li className="hover:text-amber-400 cursor-pointer">Your Account</li>
-                            <li className="hover:text-amber-400 cursor-pointer">Your Orders</li>
-                            {customerUser?.isLoggedIn && (
-                              <li className="pt-2 border-t border-slate-800">
-                                <button onClick={handleLogout} className="text-rose-400 hover:text-rose-300 font-semibold w-full text-left">
-                                  Sign Out
-                                </button>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Cart Button */}
-                <button
-                  onClick={() => setCartOpen(true)}
-                  className="flex items-center gap-1 p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-white font-bold shrink-0"
-                >
-                  <div className="relative">
-                    <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                    <span className="absolute -top-1 -right-1 bg-[#febd69] text-slate-950 text-[10px] sm:text-[11px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
-                      {cartItemCount}
-                    </span>
-                  </div>
-                  <span className="text-xs font-bold hidden sm:inline">Cart</span>
-                </button>
+            {/* Delivery address (Desktop) */}
+            <div className="hidden lg:flex items-center gap-1 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left max-w-[150px] shrink-0 select-none">
+              <MapPin className="w-5 h-5 text-slate-300 mt-2 shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-[11px] text-slate-400 leading-tight">Deliver to</span>
+                <span className="font-bold text-xs leading-tight truncate">{shippingForm.city}, {shippingForm.zip}</span>
               </div>
             </div>
 
-            {/* Bottom row: Search Bar (MOBILE ONLY - hidden on sm and up) */}
-            <div className="flex sm:hidden w-full items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69] bg-white">
+            {/* Search Bar (Desktop / Tablet) */}
+            <div className="hidden sm:flex flex-1 items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69] bg-white">
+              <select
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                className="h-full bg-slate-100 hover:bg-slate-200 border-r border-slate-300 text-slate-700 text-xs px-3 focus:outline-none cursor-pointer shrink-0 max-w-[140px]"
+              >
+                <option>All Departments</option>
+                <option>Electronics & Audio</option>
+                <option>Smart Wearables</option>
+                <option>Fashion & Apparel</option>
+                <option>Home & Kitchen</option>
+                <option>Footwear</option>
+              </select>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search NexTrend..."
-                className="flex-1 h-full px-3 bg-white text-slate-900 text-xs focus:outline-none"
+                className="flex-1 h-full px-3 text-slate-900 text-sm focus:outline-none"
               />
               <button
                 onClick={() => {}}
-                className="h-full px-4 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
-                title="Search"
+                className="h-full px-5 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
+                title="Submit Search"
               >
-                <Search className="w-4 h-4 text-slate-900" />
+                <Search className="w-5 h-5 text-slate-900" />
               </button>
             </div>
+
+            {/* Right Header Navigation Widgets */}
+            <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+              
+              {/* Language Selector */}
+              <div className="hidden md:flex items-center gap-1 p-2 rounded-lg hover:ring-1 hover:ring-white transition-all cursor-pointer font-bold text-xs select-none">
+                <Globe className="w-4 h-4 text-slate-400" />
+                <span>EN</span>
+              </div>
+
+              {/* Account & Lists */}
+              <div className="relative" ref={accountRef}>
+                <button
+                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                  className="flex flex-col items-start p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left"
+                >
+                  <span className="text-[10px] sm:text-[11px] text-slate-300 leading-tight">
+                    Hello, {customerUser?.isLoggedIn ? customerUser.name.split(' ')[0] : 'sign in'}
+                  </span>
+                  <div className="flex items-center gap-0.5 sm:gap-1 font-bold text-xs text-white leading-tight">
+                    <span>Account & Lists</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </button>
+
+                {/* Dropdown Menu */}
+                {accountMenuOpen && (
+                  <div className="absolute right-0 mt-1 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-4 z-50 text-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="pb-4 border-b border-slate-800 text-center">
+                      {customerUser?.isLoggedIn ? (
+                        <div className="text-left">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs">
+                              {customerUser.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-white text-xs">{customerUser.name}</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{customerUser.email}</div>
+                            </div>
+                          </div>
+                          <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#febd69]/10 text-[#febd69] border border-[#febd69]/20 text-[10px] font-bold">
+                            <Sparkles className="w-3 h-3" />
+                            <span>Prime Member</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <button
+                            onClick={() => { handleAutoCustomerLogin(); setAccountMenuOpen(false); }}
+                            className="w-full py-2 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] transition-all"
+                          >
+                            Sign in
+                          </button>
+                          <p className="text-[11px] text-slate-400 mt-2">
+                            New customer?{' '}
+                            <button
+                              onClick={() => { handleAutoCustomerLogin(); setAccountMenuOpen(false); }}
+                              className="text-amber-400 hover:underline"
+                            >
+                              Start here.
+                            </button>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-4 text-xs">
+                      <div>
+                        <h4 className="font-bold text-white mb-2">Your Lists</h4>
+                        <ul className="space-y-2 text-slate-400">
+                          <li className="hover:text-amber-400 cursor-pointer">Create a List</li>
+                          <li className="hover:text-amber-400 cursor-pointer">Find a List</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white mb-2">Your Account</h4>
+                        <ul className="space-y-2 text-slate-400">
+                          <li className="hover:text-amber-400 cursor-pointer">Your Account</li>
+                          <li 
+                            onClick={() => {
+                              setAccountMenuOpen(false);
+                              if (!customerUser?.isLoggedIn) {
+                                handleAutoCustomerLogin();
+                                setViewMode('orders');
+                              } else {
+                                setViewMode('orders');
+                              }
+                            }}
+                            className="hover:text-amber-400 cursor-pointer"
+                          >
+                            Your Orders
+                          </li>
+                          {customerUser?.isLoggedIn && (
+                            <li className="pt-2 border-t border-slate-800">
+                              <button onClick={handleLogout} className="text-rose-400 hover:text-rose-300 font-semibold w-full text-left">
+                                Sign Out
+                              </button>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Returns & Orders Header Button */}
+              <button
+                onClick={() => {
+                  if (!customerUser?.isLoggedIn) {
+                    handleAutoCustomerLogin();
+                    setViewMode('orders');
+                  } else {
+                    setViewMode('orders');
+                  }
+                }}
+                className="flex flex-col items-start p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-left"
+              >
+                <span className="text-[10px] sm:text-[11px] text-slate-300 leading-tight">Returns</span>
+                <span className="font-bold text-xs text-white leading-tight">& Orders</span>
+              </button>
+
+              {/* Cart Button */}
+              <button
+                onClick={() => setCartOpen(true)}
+                className="flex items-center gap-1 p-1.5 sm:p-2 rounded-lg hover:ring-1 hover:ring-white transition-all text-white font-bold shrink-0 animate-in fade-in"
+              >
+                <div className="relative">
+                  <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  <span className="absolute -top-1 -right-1 bg-[#febd69] text-slate-950 text-[10px] sm:text-[11px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
+                    {cartItemCount}
+                  </span>
+                </div>
+                <span className="text-xs font-bold hidden sm:inline">Cart</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom row: Search Bar (MOBILE ONLY) */}
+          <div className="flex sm:hidden w-full items-center h-10 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-[#febd69] bg-white">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search NexTrend..."
+              className="flex-1 h-full px-3 bg-white text-slate-900 text-xs focus:outline-none"
+            />
+            <button
+              onClick={() => {}}
+              className="h-full px-4 bg-[#febd69] hover:bg-[#f3a847] text-slate-950 flex items-center justify-center transition-colors shrink-0"
+              title="Search"
+            >
+              <Search className="w-4 h-4 text-slate-900" />
+            </button>
           </div>
         </header>
 
@@ -370,22 +543,22 @@ export const EcommerceLanding = () => {
             </button>
 
             <div className="flex items-center gap-3 text-slate-300 text-xs">
-              <button onClick={() => setActiveCategory('All')} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'All' ? 'font-bold text-amber-400' : ''}`}>
+              <button onClick={() => { setViewMode('store'); setActiveCategory('All'); }} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'All' && viewMode === 'store' ? 'font-bold text-amber-400' : ''}`}>
                 Today's Deals
               </button>
-              <button onClick={() => setActiveCategory('Electronics & Audio')} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Electronics & Audio' ? 'font-bold text-amber-400' : ''}`}>
+              <button onClick={() => { setViewMode('store'); setActiveCategory('Electronics & Audio'); }} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Electronics & Audio' && viewMode === 'store' ? 'font-bold text-amber-400' : ''}`}>
                 Electronics
               </button>
-              <button onClick={() => setActiveCategory('Fashion & Apparel')} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Fashion & Apparel' ? 'font-bold text-amber-400' : ''}`}>
+              <button onClick={() => { setViewMode('store'); setActiveCategory('Fashion & Apparel'); }} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Fashion & Apparel' && viewMode === 'store' ? 'font-bold text-amber-400' : ''}`}>
                 Fashion
               </button>
-              <button onClick={() => setActiveCategory('Smart Wearables')} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Smart Wearables' ? 'font-bold text-amber-400' : ''}`}>
+              <button onClick={() => { setViewMode('store'); setActiveCategory('Smart Wearables'); }} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Smart Wearables' && viewMode === 'store' ? 'font-bold text-amber-400' : ''}`}>
                 Smart Wearables
               </button>
-              <button onClick={() => setActiveCategory('Home & Kitchen')} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Home & Kitchen' ? 'font-bold text-amber-400' : ''}`}>
+              <button onClick={() => { setViewMode('store'); setActiveCategory('Home & Kitchen'); }} className={`hover:text-white py-1 px-1.5 rounded ${activeCategory === 'Home & Kitchen' && viewMode === 'store' ? 'font-bold text-amber-400' : ''}`}>
                 Home & Living
               </button>
-              <span className="hidden md:inline text-amber-400 font-semibold flex items-center gap-1">
+              <span className="hidden md:inline text-amber-400 font-semibold flex items-center gap-1 select-none">
                 <Sparkles className="w-3 h-3" /> Prime Day Live
               </span>
             </div>
@@ -394,419 +567,892 @@ export const EcommerceLanding = () => {
           <div className="flex items-center gap-4 shrink-0">
             <button
               onClick={() => logoutFromBusiness('ecommerce')}
-              className="flex items-center gap-1.5 text-slate-300 hover:text-[#febd69] py-1 px-2 rounded hover:ring-1 hover:ring-white transition-all font-semibold"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/40 hover:bg-slate-800/80 border border-slate-700/50 hover:border-[#febd69]/40 text-slate-200 hover:text-[#febd69] text-xs font-bold transition-all duration-200 group active:scale-95"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
               <span>Sign Out</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 3. HERO PROMOTIONAL BANNER (AMAZON CAROUSEL) */}
-      <div className="relative max-w-[1500px] mx-auto overflow-hidden">
-        <div className="relative h-[320px] sm:h-[420px]">
-          {ecommerceData.heroBanners.map((banner, idx) => (
-            <div
-              key={banner.id}
-              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                idx === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'
-              }`}
-            >
-              <img
-                src={banner.image}
-                alt={banner.title}
-                className="w-full h-full object-cover object-center"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f1111] via-[#0f1111]/40 to-transparent" />
-              
-              <div className="absolute top-12 left-6 sm:left-12 max-w-xl space-y-3 z-20">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/70 text-amber-400 border border-amber-400/40 text-xs font-bold backdrop-blur-md">
-                  <Flame className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Featured Prime Event</span>
-                </span>
-
-                <h1 className="text-2xl sm:text-4xl font-heading font-extrabold text-white leading-tight drop-shadow-md">
-                  {banner.title}
-                </h1>
-
-                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed drop-shadow">
-                  {banner.subtitle}
-                </p>
-
-                <button
-                  onClick={() => {
-                    setActiveCategory(banner.category);
-                    document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-lg border border-[#FCD200] transition-all"
-                >
-                  {banner.ctaText}
-                </button>
+      {/* Main Content Area */}
+      <main>
+        
+        {/* STOREFRONT MODE VIEW */}
+        {viewMode === 'store' && (
+          <div className="animate-in fade-in duration-300">
+            {/* 3. HERO PROMOTIONAL BANNER */}
+            <div className="relative max-w-[1500px] mx-auto overflow-hidden">
+              <div className="relative h-[320px] sm:h-[420px]">
+                {ecommerceData.heroBanners.map((banner, idx) => (
+                  <div
+                    key={banner.id}
+                    className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                      idx === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                    }`}
+                  >
+                    <img
+                      src={banner.image}
+                      alt={banner.title}
+                      className="w-full h-full object-cover object-center"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                    
+                    {/* Editorial Pitch */}
+                    <div className="absolute bottom-16 sm:bottom-24 left-4 sm:left-12 z-20 max-w-xl space-y-3 sm:space-y-4">
+                      <span className="inline-block text-[10px] sm:text-xs font-bold text-amber-400 bg-slate-950/80 border border-amber-500/20 px-3 py-1 rounded-full uppercase tracking-wider">
+                        {banner.category}
+                      </span>
+                      <h2 className="text-xl sm:text-4xl font-extrabold text-white leading-tight font-heading">
+                        {banner.title}
+                      </h2>
+                      <p className="text-slate-300 text-[11px] sm:text-sm leading-relaxed hidden sm:block">
+                        {banner.subtitle}
+                      </p>
+                      <button
+                        onClick={() => setActiveCategory(banner.category)}
+                        className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-[#febd69] hover:bg-[#f3a847] text-slate-950 font-bold text-[11px] sm:text-xs transition-colors shadow-lg"
+                      >
+                        {banner.ctaText}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
 
-          {/* Carousel Arrows */}
-          <button
-            onClick={() => setCurrentBanner(prev => (prev - 1 + ecommerceData.heroBanners.length) % ecommerceData.heroBanners.length)}
-            className="absolute left-2 top-1/3 -translate-y-1/2 z-20 w-10 h-16 bg-black/40 hover:bg-black/70 text-white rounded-r flex items-center justify-center border border-slate-700/50 backdrop-blur-sm"
-          >
-            ‹
-          </button>
-          <button
-            onClick={() => setCurrentBanner(prev => (prev + 1) % ecommerceData.heroBanners.length)}
-            className="absolute right-2 top-1/3 -translate-y-1/2 z-20 w-10 h-16 bg-black/40 hover:bg-black/70 text-white rounded-l flex items-center justify-center border border-slate-700/50 backdrop-blur-sm"
-          >
-            ›
-          </button>
-        </div>
-      </div>
+            {/* 4. PRODUCT LISTING SECTION */}
+            <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+              
+              {/* Quad Cards (Amazon style grids) */}
+              {activeCategory === 'All' && !searchQuery && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 -mt-16 sm:-mt-24 relative z-20 mb-8 items-stretch select-none">
+                  {ecommerceData.quadCards.map((card, idx) => (
+                    <div key={idx} className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-sm sm:text-base font-bold text-white mb-4 line-clamp-1">{card.title}</h3>
+                        <div className="grid grid-cols-2 gap-3.5">
+                          {card.items.map((item, itemIdx) => (
+                            <div
+                              key={itemIdx}
+                              onClick={() => {
+                                const matchedCategory = item.label.includes('Audio') || item.label.includes('Keyboard') ? 'Electronics & Audio' : item.label.includes('Warc') || item.label.includes('Watches') || item.label.includes('Track') ? 'Smart Wearables' : item.label.includes('Outer') || item.label.includes('Bag') ? 'Fashion & Apparel' : 'Home & Kitchen';
+                                setActiveCategory(matchedCategory);
+                              }}
+                              className="group/item cursor-pointer space-y-1.5 text-left"
+                            >
+                              <div className="aspect-square w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
+                                <img src={item.image} alt={item.label} className="w-full h-full object-cover group-hover/item:scale-105 transition-transform duration-300" />
+                              </div>
+                              <span className="text-[10px] font-semibold text-slate-400 group-hover/item:text-amber-400 block truncate">{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-amber-400 hover:text-amber-300 font-bold text-xs mt-5 hover:underline cursor-pointer block">
+                        {card.linkText}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-      {/* 4. AMAZON 4-GRID QUAD CARDS (Overlapping Hero) */}
-      <div className="max-w-[1500px] mx-auto px-4 -mt-24 sm:-mt-36 relative z-20 mb-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {ecommerceData.quadCards.map((quad, idx) => (
-            <div
-              key={idx}
-              className="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-md flex flex-col justify-between"
-            >
-              <div>
-                <h3 className="text-base font-heading font-bold text-white mb-3 leading-snug">
-                  {quad.title}
-                </h3>
+              {/* Main Directory List */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-heading font-extrabold text-white">
+                      {activeCategory === 'All' ? 'Deals & Trending Products' : `${activeCategory} Collection`}
+                    </h3>
+                    <p className="text-xs text-slate-400">Prime 1-day delivery and secure payment checkout</p>
+                  </div>
+                  <span className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl font-semibold">
+                    {filteredProducts.length} Items Found
+                  </span>
+                </div>
 
-                <div className="grid grid-cols-2 gap-2.5 mb-4">
-                  {quad.items.map((item, itemIdx) => (
-                    <div
-                      key={itemIdx}
-                      onClick={() => {
-                        setSearchQuery(item.label);
-                        document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="cursor-pointer group"
+                {filteredProducts.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {filteredProducts.map((prod) => (
+                      <div
+                        key={prod.id}
+                        className="bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-3xl p-5 flex flex-col justify-between shadow-md transition-all group relative overflow-hidden"
+                      >
+                        {/* Top Badge & Save Indicator */}
+                        <div className="absolute top-3.5 left-3.5 z-20 flex flex-col gap-1.5 select-none">
+                          {prod.badge && (
+                            <span className="text-[9px] font-bold text-slate-950 bg-[#febd69] px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md">
+                              {prod.badge}
+                            </span>
+                          )}
+                          {prod.dealBadge && (
+                            <span className="text-[8px] font-bold text-white bg-rose-600 px-2 py-0.5 rounded-full uppercase tracking-wide shadow-md w-fit">
+                              {prod.dealBadge}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          {/* Image Container */}
+                          <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800/60 mb-4">
+                            <img
+                              src={prod.image}
+                              alt={prod.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=600';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 to-transparent" />
+                          </div>
+
+                          {/* Info Block */}
+                          <div className="space-y-1.5 text-left">
+                            <span className="text-[10px] text-slate-400 font-semibold block">{prod.category}</span>
+                            <h4 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-relaxed min-h-[40px] group-hover:text-amber-400 transition-colors">
+                              {prod.title}
+                            </h4>
+                            
+                            {/* Star Rating */}
+                            <div className="flex items-center gap-1 text-[11px] text-amber-400 select-none">
+                              <Star className="w-3.5 h-3.5 fill-current" />
+                              <span className="font-bold">{prod.rating}</span>
+                              <span className="text-slate-500 font-semibold">({prod.reviews})</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 text-left space-y-4">
+                          {/* Price details */}
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-mono text-base sm:text-lg font-black text-white">${prod.price.toFixed(2)}</span>
+                            {prod.originalPrice && (
+                              <span className="font-mono text-xs text-slate-500 line-through">${prod.originalPrice.toFixed(2)}</span>
+                            )}
+                          </div>
+
+                          {/* Prime Badge & Buy actions */}
+                          <div className="space-y-2">
+                            {prod.prime && (
+                              <div className="flex items-center gap-1.5 select-none">
+                                <span className="text-[9px] font-black italic bg-blue-600 text-white px-1.5 py-0.2 rounded-md shadow-inner">PRIME</span>
+                                <span className="text-[10px] text-slate-400 font-medium">FREE One-Day Delivery</span>
+                              </div>
+                            )}
+
+                            <button
+                              onClick={() => addToCart(prod)}
+                              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-b from-[#F7CA00] to-[#E8BD00] hover:from-[#E8BD00] hover:to-[#D4A300] text-slate-950 font-bold text-xs shadow-md border border-[#D8B000] active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <ShoppingCart className="w-3.5 h-3.5" />
+                              <span>Add to Cart</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-24 border border-dashed border-slate-800 rounded-3xl text-center text-slate-500 space-y-2">
+                    <Search className="w-12 h-12 text-slate-700 mx-auto animate-bounce" />
+                    <h4 className="font-bold text-white">No matches found for "{searchQuery}"</h4>
+                    <p className="text-xs">Try selecting a different department filter or checking spelling.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 8. SIDEBAR SIDE MENU */}
+            {sidebarOpen && (
+              <div className="fixed inset-0 z-50 flex animate-in fade-in duration-200">
+                <div onClick={() => setSidebarOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+                <div className="relative w-80 bg-slate-900 border-r border-slate-700 flex flex-col justify-between p-5 animate-in slide-in-from-left duration-250">
+                  <div>
+                    {/* User Header */}
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-700">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+                          <User className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-white">
+                            Hello, {customerUser?.isLoggedIn ? customerUser.name : 'Sign In'}
+                          </div>
+                          <div className="text-[10px] text-slate-400">Prime Executive Account</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-white">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Departments Navigation */}
+                    <div className="py-4 space-y-4 text-xs">
+                      <div>
+                        <h4 className="font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-2">
+                          Digital Content & Devices
+                        </h4>
+                        <ul className="space-y-2 text-slate-200">
+                          <li className="hover:text-amber-400 cursor-pointer flex justify-between">NexTrend Studio Audio <ChevronRight className="w-3.5 h-3.5 text-slate-500" /></li>
+                          <li className="hover:text-amber-400 cursor-pointer flex justify-between">Vanguard Smart Wearables <ChevronRight className="w-3.5 h-3.5 text-slate-500" /></li>
+                        </ul>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-800">
+                        <h4 className="font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-2">
+                          Shop By Department
+                        </h4>
+                        <ul className="space-y-2 text-slate-200">
+                          {['Electronics & Audio', 'Smart Wearables', 'Fashion & Apparel', 'Home & Kitchen', 'Footwear'].map((dept, i) => (
+                            <li
+                              key={i}
+                              onClick={() => {
+                                setViewMode('store');
+                                setActiveCategory(dept);
+                                setSidebarOpen(false);
+                              }}
+                              className="hover:text-amber-400 cursor-pointer flex justify-between"
+                            >
+                              <span>{dept}</span>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Actions */}
+                  <div className="pt-4 border-t border-slate-700 text-xs">
+                    <button
+                      onClick={() => { handleAutoCustomerLogin(); setSidebarOpen(false); }}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs text-center border border-slate-700"
                     >
-                      <div className="h-24 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 mb-1">
-                        <img
-                          src={item.image}
-                          alt={item.label}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      {customerUser?.isLoggedIn ? 'Switch Amazon / NexTrend Account' : 'Sign In to NexTrend'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CHECKOUT PAYMENT SCREEN */}
+        {viewMode === 'checkout' && (
+          <div className="max-w-[1150px] mx-auto px-4 py-8 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 mb-6">
+              <button
+                onClick={() => setViewMode('store')}
+                className="flex items-center gap-1 text-slate-400 hover:text-white font-semibold transition-colors text-xs"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Storefront</span>
+              </button>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400 text-xs font-semibold">Secure Checkout (SSL Encrypted)</span>
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-6 font-heading">Review & Complete Your Order</h2>
+
+            <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column Fields */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* Shipping Details */}
+                <div className="bg-[#1b2530] border border-slate-800 rounded-2xl p-6">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-slate-800 pb-3">
+                    <div className="p-2 rounded-lg bg-[#febd69]/10 text-[#febd69]">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-bold text-white text-sm">1. Delivery Address</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="sm:col-span-2">
+                      <label className="block text-slate-400 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={shippingForm.fullName}
+                        onChange={(e) => setShippingForm({ ...shippingForm, fullName: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1">Street Address</label>
+                      <input
+                        type="text"
+                        required
+                        value={shippingForm.address}
+                        onChange={(e) => setShippingForm({ ...shippingForm, address: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1">City</label>
+                        <input
+                          type="text"
+                          required
+                          value={shippingForm.city}
+                          onChange={(e) => setShippingForm({ ...shippingForm, city: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
                         />
                       </div>
-                      <span className="text-[11px] text-slate-300 font-medium group-hover:text-amber-400 transition-colors">
-                        {item.label}
+                      <div>
+                        <label className="block text-slate-400 mb-1">ZIP Code</label>
+                        <input
+                          type="text"
+                          required
+                          value={shippingForm.zip}
+                          onChange={(e) => setShippingForm({ ...shippingForm, zip: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Details */}
+                <div className="bg-[#1b2530] border border-slate-800 rounded-2xl p-6">
+                  <div className="flex items-center gap-2.5 mb-4 border-b border-slate-800 pb-3">
+                    <div className="p-2 rounded-lg bg-[#febd69]/10 text-[#febd69]">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-bold text-white text-sm">2. Payment Method</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="space-y-4 text-xs">
+                      <div>
+                        <label className="block text-slate-400 mb-1">Payment Option</label>
+                        <select
+                          value={shippingForm.paymentMethod}
+                          onChange={(e) => setShippingForm({ ...shippingForm, paymentMethod: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69] cursor-pointer"
+                        >
+                          <option value="card">Credit or Debit Card</option>
+                          <option value="wallet">NexTrend Prime 1-Click Wallet</option>
+                          <option value="cod">Cash on Delivery (COD)</option>
+                        </select>
+                      </div>
+
+                      {shippingForm.paymentMethod === 'card' && (
+                        <>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Card Number</label>
+                            <input
+                              type="text"
+                              required
+                              value={shippingForm.cardNumber}
+                              onChange={(e) => setShippingForm({ ...shippingForm, cardNumber: e.target.value })}
+                              className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-slate-400 mb-1">Expiry Date</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="MM/YY"
+                                value={shippingForm.cardExpiry}
+                                onChange={(e) => setShippingForm({ ...shippingForm, cardExpiry: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-slate-400 mb-1">CVV</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="123"
+                                value={shippingForm.cardCvv}
+                                onChange={(e) => setShippingForm({ ...shippingForm, cardCvv: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white focus:outline-none focus:border-[#febd69]"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {shippingForm.paymentMethod === 'card' ? (
+                      <div className="h-44 rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 border border-slate-700 p-5 flex flex-col justify-between shadow-2xl relative overflow-hidden select-none">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">NexTrend Prime Card</span>
+                            <div className="w-10 h-7 bg-amber-500/20 border border-amber-500/40 rounded-md mt-2 flex items-center justify-center font-bold text-slate-300 text-[10px] tracking-wider">
+                              CHIP
+                            </div>
+                          </div>
+                          <span className="font-bold text-white text-base tracking-widest">VISA</span>
+                        </div>
+
+                        <div>
+                          <div className="font-mono text-base tracking-widest text-white mt-4">
+                            {shippingForm.cardNumber || '•••• •••• •••• ••••'}
+                          </div>
+                          <div className="flex justify-between items-end mt-4">
+                            <div>
+                              <span className="text-[8px] text-slate-400 block uppercase">Cardholder</span>
+                              <span className="font-bold text-white text-xs block truncate max-w-[140px]">
+                                {shippingForm.fullName || 'Alexander Sterling'}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[8px] text-slate-400 block uppercase">Expires</span>
+                              <span className="font-bold text-white text-xs block font-mono">
+                                {shippingForm.cardExpiry || 'MM/YY'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-44 rounded-2xl bg-slate-950 border border-slate-800 p-5 flex flex-col justify-center items-center text-center gap-3 select-none">
+                        <span className="p-3 rounded-full bg-emerald-500/10 text-emerald-400">
+                          <Check className="w-6 h-6" />
+                        </span>
+                        <span className="text-xs font-bold text-white">
+                          {shippingForm.paymentMethod === 'wallet' ? 'Prime 1-Click Wallet Selected' : 'Cash on Delivery Selected'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">No card inputs required</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Review Items */}
+                <div className="bg-[#1b2530] border border-slate-800 rounded-2xl p-6">
+                  <h3 className="font-bold text-white text-sm mb-4 border-b border-slate-800 pb-3">3. Review Items & Shipping</h3>
+                  <div className="space-y-4">
+                    {cart.map((item) => (
+                      <div key={item.id} className="flex gap-4 pb-4 border-b border-slate-900/60 last:border-none last:pb-0">
+                        <img src={item.image} alt={item.title} className="w-16 h-16 rounded-xl object-cover bg-slate-900 border border-slate-800 shrink-0 select-none" />
+                        <div>
+                          <h4 className="font-bold text-white text-xs line-clamp-2 leading-relaxed">{item.title}</h4>
+                          <div className="flex items-center gap-4 mt-2 text-xs">
+                            <span className="font-mono text-amber-400 font-bold">${item.price.toFixed(2)}</span>
+                            <span className="text-slate-400">Qty: {item.qty}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Summary box */}
+              <div className="space-y-6">
+                <div className="bg-[#1b2530] border border-slate-800 rounded-2xl p-6 sticky top-24 select-none">
+                  <h3 className="font-bold text-white text-sm mb-4 pb-2 border-b border-slate-800">Order Summary</h3>
+
+                  <div className="space-y-3 text-xs text-slate-300">
+                    <div className="flex justify-between">
+                      <span>Items ({cartItemCount}):</span>
+                      <span className="font-mono">${cartTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Shipping & Handling:</span>
+                      <span className="text-emerald-400">FREE (Prime)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Import Fee Deposit:</span>
+                      <span className="font-mono">$0.00</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-800 pt-3 text-sm font-bold text-white">
+                      <span>Order Total:</span>
+                      <span className="font-mono text-amber-400">${cartTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-slate-800 mt-6">
+                    <button
+                      type="submit"
+                      disabled={checkoutComplete}
+                      className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                    >
+                      {checkoutComplete ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                          <span>Processing Payment...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Place Your Prime Order</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[10px] text-slate-400 text-center mt-3 leading-relaxed">
+                      By placing your order, you agree to NexTrend's conditions of use and privacy notice.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* YOUR ORDERS HISTORY VIEW */}
+        {viewMode === 'orders' && (
+          <div className="max-w-[1150px] mx-auto px-4 py-8 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <button
+                onClick={() => setViewMode('store')}
+                className="flex items-center gap-1 text-slate-400 hover:text-white font-semibold transition-colors text-xs"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Shopping</span>
+              </button>
+              <h2 className="text-2xl font-bold text-white font-heading">Your Orders</h2>
+            </div>
+
+            <div className="space-y-6">
+              {orders.length > 0 ? (
+                orders.map((order) => (
+                  <div key={order.id} className="bg-[#1b2530] border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+                    {/* Order header information */}
+                    <div className="bg-[#232f3e]/80 border-b border-slate-800 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-300 select-none">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Order Placed</span>
+                        <p className="font-semibold text-white mt-1">{order.date}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Total paid</span>
+                        <p className="font-mono font-bold text-white mt-1">${order.total.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Ship To</span>
+                        <p className="font-semibold text-teal-400 mt-1">{shippingForm.fullName}</p>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Order ID</span>
+                        <p className="font-mono text-[11px] text-slate-300 mt-1">{order.id}</p>
+                      </div>
+                    </div>
+
+                    {/* Order Body Details */}
+                    <div className="p-5 flex flex-col md:flex-row justify-between gap-6">
+                      <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] uppercase border ${
+                            order.status === 'Delivered' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse'
+                          }`}>
+                            {order.status}
+                          </span>
+                          <span className="text-xs text-slate-400 font-semibold">• Estimated delivery: {order.estDelivery}</span>
+                        </div>
+
+                        <div className="space-y-3">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="flex gap-4">
+                              <img src={item.image} alt={item.title} className="w-16 h-16 rounded-xl object-cover bg-slate-900 border border-slate-800 shrink-0 select-none" />
+                              <div>
+                                <h4 className="font-bold text-white text-xs line-clamp-2 leading-relaxed">{item.title}</h4>
+                                <div className="flex items-center gap-4 mt-2 text-xs">
+                                  <span className="font-mono text-slate-300">${item.price.toFixed(2)}</span>
+                                  <span className="text-slate-500">Qty: {item.qty}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Side Tracking action */}
+                      <div className="w-full md:w-56 flex flex-col gap-2.5 shrink-0 justify-center">
+                        <button
+                          onClick={() => {
+                            setActiveOrderForTracking(order);
+                            setViewMode('track');
+                          }}
+                          className="w-full py-2.5 px-4 rounded-xl bg-[#febd69] hover:bg-[#f3a847] text-slate-950 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Track Package</span>
+                        </button>
+
+                        {order.status !== 'Delivered' && order.status !== 'Return Requested' && (
+                          <button
+                            onClick={() => handleAdvanceDelivery(order.id)}
+                            className="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-750 text-xs font-semibold transition-all active:scale-[0.98]"
+                          >
+                            Simulate Next Stage
+                          </button>
+                        )}
+
+                        {/* Cancel Order Button — only for non-delivered, non-return orders */}
+                        {order.status !== 'Delivered' && order.status !== 'Return Requested' && (
+                          cancelConfirmId === order.id ? (
+                            <div className="bg-rose-950/60 border border-rose-500/30 rounded-xl p-3 space-y-2">
+                              <p className="text-[11px] text-rose-300 font-semibold text-center">Cancel this order?</p>
+                              <p className="text-[10px] text-rose-400/70 text-center">This action cannot be undone.</p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleCancelOrder(order.id)}
+                                  className="flex-1 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold transition-all active:scale-95"
+                                >
+                                  Yes, Cancel
+                                </button>
+                                <button
+                                  onClick={() => setCancelConfirmId(null)}
+                                  className="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold border border-slate-700 transition-all active:scale-95"
+                                >
+                                  Keep Order
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setCancelConfirmId(order.id)}
+                              className="w-full py-2 px-4 rounded-xl bg-transparent hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 border border-rose-500/30 hover:border-rose-500/50 text-xs font-semibold transition-all active:scale-[0.98]"
+                            >
+                              Cancel Order
+                            </button>
+                          )
+                        )}
+
+                        {/* Return Items — only for Delivered orders */}
+                        {order.status === 'Delivered' && (
+                          returnState[order.id]?.submitted ? (
+                            <div className="bg-teal-950/60 border border-teal-500/30 rounded-xl p-3 text-center space-y-1">
+                              <p className="text-[11px] text-teal-300 font-bold">Return Requested ✓</p>
+                              <p className="text-[10px] text-teal-400/70">Pickup scheduled within 24 hrs. Refund in 5–7 days.</p>
+                            </div>
+                          ) : returnState[order.id]?.open ? (
+                            <div className="bg-slate-950/80 border border-slate-700 rounded-xl p-3 space-y-3">
+                              <p className="text-[11px] text-white font-bold">Return Items</p>
+                              <div>
+                                <label className="block text-[10px] text-slate-400 mb-1">Reason for Return</label>
+                                <select
+                                  value={returnState[order.id]?.reason || ''}
+                                  onChange={(e) => setReturnState(prev => ({ ...prev, [order.id]: { ...prev[order.id], reason: e.target.value } }))}
+                                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-[10px] focus:outline-none focus:border-[#febd69] cursor-pointer"
+                                >
+                                  <option value="">Select a reason...</option>
+                                  <option value="Damaged on arrival">Damaged on arrival</option>
+                                  <option value="Wrong item delivered">Wrong item delivered</option>
+                                  <option value="Item not as described">Item not as described</option>
+                                  <option value="No longer needed">No longer needed</option>
+                                  <option value="Ordered by mistake">Ordered by mistake</option>
+                                  <option value="Better price available">Better price available</option>
+                                </select>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleReturnOrder(order.id)}
+                                  className="flex-1 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-bold transition-all active:scale-95"
+                                >
+                                  Submit Return
+                                </button>
+                                <button
+                                  onClick={() => setReturnState(prev => ({ ...prev, [order.id]: { open: false, reason: '' } }))}
+                                  className="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold border border-slate-700 transition-all active:scale-95"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setReturnState(prev => ({ ...prev, [order.id]: { open: true, reason: '' } }))}
+                              className="w-full py-2 px-4 rounded-xl bg-transparent hover:bg-teal-500/10 text-teal-400 hover:text-teal-300 border border-teal-500/30 hover:border-teal-500/50 text-xs font-semibold transition-all active:scale-[0.98]"
+                            >
+                              Return Items
+                            </button>
+                          )
+                        )}
+
+                        {/* Return Requested badge */}
+                        {order.status === 'Return Requested' && (
+                          <div className="bg-teal-950/60 border border-teal-500/30 rounded-xl p-3 text-center space-y-1">
+                            <p className="text-[11px] text-teal-300 font-bold">Return In Progress</p>
+                            <p className="text-[10px] text-teal-400/70">Reason: {order.returnReason}</p>
+                            <p className="text-[10px] text-teal-400/50">Pickup scheduled. Refund in 5–7 days.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-16 bg-[#1b2530] border border-slate-800 rounded-3xl text-center text-slate-500 space-y-4">
+                  <Package className="w-16 h-16 text-slate-755 mx-auto" />
+                  <h3 className="text-lg font-bold text-white">No Orders Placed Yet</h3>
+                  <p className="text-xs">Go back to the catalog and select products to check out.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* PACKAGE SHIPMENT TRACKING VIEW */}
+        {viewMode === 'track' && activeOrderForTracking && (
+          <div className="max-w-[850px] mx-auto px-4 py-8 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 mb-6">
+              <button
+                onClick={() => setViewMode('orders')}
+                className="flex items-center gap-1 text-slate-400 hover:text-white font-semibold transition-colors text-xs"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Orders</span>
+              </button>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400 text-xs font-semibold">Tracking ID: {activeOrderForTracking.id}</span>
+            </div>
+
+            <div className="bg-[#1b2530] border border-slate-800 rounded-3xl p-6 md:p-8 space-y-8">
+              {/* Header Information */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5 select-none">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Estimated Delivery</span>
+                  <h3 className="text-xl font-bold text-white mt-1 flex items-center gap-2 font-heading">
+                    <Clock className="w-5 h-5 text-[#febd69] animate-pulse" />
+                    <span>{activeOrderForTracking.estDelivery}</span>
+                  </h3>
+                </div>
+                <div className="text-sm">
+                  <span className="text-[10px] text-slate-400 block uppercase font-bold text-right">Courier Network</span>
+                  <span className="font-bold text-teal-400 mt-1 block">NexTrend Air Prime Logistics</span>
+                </div>
+              </div>
+
+              {/* Progress Bar Visual */}
+              <div className="space-y-4 select-none">
+                <div className="flex justify-between text-[10px] sm:text-xs font-semibold text-slate-400">
+                  <span className={activeOrderForTracking.trackingProgress >= 20 ? 'text-teal-400 font-bold' : ''}>Ordered</span>
+                  <span className={activeOrderForTracking.trackingProgress >= 40 ? 'text-teal-400 font-bold' : ''}>Packed</span>
+                  <span className={activeOrderForTracking.trackingProgress >= 70 ? 'text-teal-400 font-bold' : ''}>Shipped</span>
+                  <span className={activeOrderForTracking.trackingProgress >= 90 ? 'text-teal-400 font-bold' : ''}>Out for Delivery</span>
+                  <span className={activeOrderForTracking.trackingProgress >= 100 ? 'text-emerald-400 font-bold' : ''}>Delivered</span>
+                </div>
+                <div className="w-full h-3 bg-slate-950 rounded-full border border-slate-800 overflow-hidden relative">
+                  <div 
+                    className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${
+                      activeOrderForTracking.status === 'Delivered' 
+                        ? 'from-emerald-500 to-teal-400' 
+                        : 'from-blue-600 via-teal-500 to-[#febd69]'
+                    }`}
+                    style={{ width: `${activeOrderForTracking.trackingProgress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Timeline Updates */}
+              <div className="space-y-5">
+                <h4 className="font-bold text-white text-sm pb-2 border-b border-slate-800">Shipment Activity Log</h4>
+                
+                <div className="relative border-l border-slate-800 ml-3 pl-6 space-y-6">
+                  {activeOrderForTracking.timeline.map((log, idx) => (
+                    <div key={idx} className="relative">
+                      <span className={`absolute -left-[31px] top-0.5 w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center ${
+                        idx === 0 
+                          ? 'bg-[#1b2530] border-teal-500 text-teal-400 animate-pulse' 
+                          : 'bg-[#232f3e] border-slate-800 text-slate-500'
+                      }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
                       </span>
+                      
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-xs">{log.status}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">{log.time}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{log.detail}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  document.getElementById('products-grid')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="text-xs font-semibold text-amber-400 hover:text-amber-300 text-left flex items-center gap-1 pt-2 border-t border-slate-800"
-              >
-                <span>{quad.linkText}</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              {/* Simulation triggers */}
+              {activeOrderForTracking.status !== 'Delivered' && (
+                <div className="pt-6 border-t border-slate-800 flex justify-end">
+                  <button
+                    onClick={() => handleAdvanceDelivery(activeOrderForTracking.id)}
+                    className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[#febd69] hover:text-white border border-slate-750 text-xs font-bold transition-all active:scale-[0.98]"
+                  >
+                    Simulate Next Shipment Stage
+                  </button>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. TODAY'S DEALS LIGHTNING STRIP */}
-      <div className="max-w-[1500px] mx-auto px-4 mb-10">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <span className="text-lg font-heading font-bold text-white">Today's Deals</span>
-              <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Ends in 04h : 22m : 18s
-              </span>
-            </div>
-            <span className="text-xs text-slate-400">Prime early access unlocked</span>
           </div>
+        )}
 
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {ecommerceData.products.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => addToCart(item)}
-                className="min-w-[200px] sm:min-w-[220px] bg-slate-950 p-3.5 rounded-2xl border border-slate-800 hover:border-amber-500/40 cursor-pointer transition-all flex flex-col justify-between group"
-              >
-                <div className="h-32 rounded-xl overflow-hidden mb-2 bg-slate-900">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                </div>
-                <div>
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white mb-1.5">
-                    {item.dealBadge}
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-white text-base">${item.price}</span>
-                    <span className="text-xs text-slate-500 line-through">${item.originalPrice}</span>
-                  </div>
-                  <p className="text-xs text-slate-300 truncate font-medium mt-1">{item.title}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      </main>
 
-      {/* 6. MAIN PRODUCT CATALOG GRID (AMAZON STYLE) */}
-      <div id="products-grid" className="max-w-[1500px] mx-auto px-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
-          <div>
-            <h2 className="text-2xl font-heading font-extrabold text-white">Results & Top Recommendations</h2>
-            <p className="text-xs text-slate-400">
-              Price and other details may vary based on product size and color.
-            </p>
-          </div>
-
-          {/* Category Chips */}
-          <div className="flex flex-wrap gap-2">
-            {['All', 'Electronics & Audio', 'Smart Wearables', 'Fashion & Apparel', 'Home & Kitchen', 'Footwear'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeCategory === cat
-                    ? 'bg-[#febd69] text-slate-950 shadow-md font-bold'
-                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Product Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredProducts.map((prod) => (
-            <div
-              key={prod.id}
-              className="bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-3xl overflow-hidden p-5 flex flex-col justify-between shadow-lg transition-all group"
-            >
-              <div>
-                {/* Header Badge */}
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                    {prod.badge}
-                  </span>
-                  <span className="text-[11px] text-emerald-400 font-medium">In Stock</span>
-                </div>
-
-                {/* Image */}
-                <div className="h-52 rounded-2xl overflow-hidden bg-slate-950 mb-4 relative">
-                  <img
-                    src={prod.image}
-                    alt={prod.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-
-                {/* Title */}
-                <h3 className="font-bold text-white text-sm line-clamp-2 leading-snug hover:text-amber-400 cursor-pointer transition-colors">
-                  {prod.title}
-                </h3>
-
-                {/* Star Ratings */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  <div className="flex text-amber-400">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-                    ))}
-                  </div>
-                  <span className="text-xs font-bold text-slate-200">{prod.rating}</span>
-                  <span className="text-xs text-slate-500">({prod.reviews.toLocaleString()})</span>
-                </div>
-
-                {/* Prime Badge */}
-                <div className="flex items-center gap-1 mt-2 text-xs font-semibold text-blue-400">
-                  <span className="text-[#00A8E1] font-extrabold italic">✓prime</span>
-                  <span className="text-slate-400 text-[11px] font-normal">FREE One-Day Delivery</span>
-                </div>
-
-                {/* Price Display */}
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-xs text-slate-300 font-bold self-start mt-0.5">$</span>
-                  <span className="text-2xl font-bold font-heading text-white">{Math.floor(prod.price)}</span>
-                  <span className="text-xs text-slate-300 font-bold self-start mt-0.5">
-                    {(prod.price % 1).toFixed(2).substring(1)}
-                  </span>
-                  <span className="text-xs text-slate-500 line-through ml-2">${prod.originalPrice}</span>
-                </div>
-              </div>
-
-              {/* Amazon Yellow Add to Cart Button */}
-              <div className="mt-4 pt-3 border-t border-slate-800">
-                <button
-                  onClick={() => addToCart(prod)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" />
-                  <span>Add to Cart</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 7. SHOPPING CART DRAWER */}
+      {/* 5. SHOPPING CART DRAWER (Slide-over) */}
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md h-full bg-[#131921] border-l border-slate-700 p-6 flex flex-col justify-between shadow-2xl">
+        <div className="fixed inset-0 z-50 flex justify-end animate-in fade-in duration-200">
+          <div onClick={() => setCartOpen(false)} className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-slate-900 border-l border-slate-800 flex flex-col justify-between p-6 animate-in slide-in-from-right duration-250">
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5 text-amber-400" />
-                  <h3 className="font-bold text-white text-base">Shopping Cart ({cartItemCount} items)</h3>
+                  <ShoppingCart className="w-5 h-5 text-white" />
+                  <h3 className="font-bold text-white text-base font-heading">Shopping Cart ({cartItemCount})</h3>
                 </div>
-                <button
-                  onClick={() => setCartOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-                >
+                <button onClick={() => setCartOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Free Shipping Bar */}
-              <div className="mt-4 p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Your order qualifies for <strong>FREE Prime Express Delivery!</strong></span>
-              </div>
-
-              {/* Items List */}
-              <div className="py-4 space-y-3 max-h-[55vh] overflow-y-auto pr-1">
-                {cart.length === 0 ? (
-                  <div className="text-center py-12 space-y-3">
-                    <ShoppingCart className="w-12 h-12 text-slate-600 mx-auto" />
-                    <p className="text-xs text-slate-400">Your NexTrend Cart is empty.</p>
-                  </div>
-                ) : (
-                  cart.map((item) => (
-                    <div key={item.id} className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
-                      <div className="flex items-start gap-3">
-                        <img src={item.image} alt={item.title} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                        <div className="flex-1">
-                          <h4 className="text-xs font-bold text-white line-clamp-2">{item.title}</h4>
-                          <div className="text-xs font-bold text-amber-400 mt-1">${item.price}</div>
+              {cart.length > 0 ? (
+                <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                  {cart.map((item) => (
+                    <div key={item.id} className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 flex gap-4">
+                      <img src={item.image} alt={item.title} className="w-16 h-16 rounded-xl object-cover bg-slate-900 border border-slate-800 shrink-0 select-none" />
+                      <div className="flex-1 space-y-1">
+                        <h4 className="font-bold text-white text-xs line-clamp-2 leading-relaxed">{item.title}</h4>
+                        <div className="flex items-baseline gap-1.5 pt-0.5">
+                          <span className="font-mono text-xs font-bold text-amber-400">${item.price.toFixed(2)}</span>
+                        </div>
+                        
+                        {/* Adjust quantities */}
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center gap-2.5 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1">
+                            <button onClick={() => updateCartQty(item.id, -1)} className="text-slate-400 hover:text-white font-bold text-xs" title="Decrease Qty">-</button>
+                            <span className="text-xs font-bold text-white min-w-4 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.id, 1)} className="text-slate-400 hover:text-white font-bold text-xs" title="Increase Qty">+</button>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-slate-400 hover:text-rose-400 text-[10px] font-bold"
+                          >
+                            Remove
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
-                        <div className="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-                          <button onClick={() => updateCartQty(item.id, -1)} className="text-slate-400 hover:text-white px-1">-</button>
-                          <span className="font-bold text-white">{item.qty}</span>
-                          <button onClick={() => updateCartQty(item.id, 1)} className="text-slate-400 hover:text-white px-1">+</button>
-                        </div>
-                        <button
-                          onClick={() => removeFromCart(item.id)}
-                          className="text-xs text-rose-400 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-16 text-center text-slate-500 space-y-3">
+                  <ShoppingCart className="w-12 h-12 text-slate-800 mx-auto" />
+                  <p className="text-xs font-medium">Your NexTrend cart is empty.</p>
+                </div>
+              )}
             </div>
 
-            {/* Cart Footer */}
-            {cart.length > 0 && (
-              <div className="pt-4 border-t border-slate-800 space-y-3 text-xs">
-                <div className="flex justify-between text-slate-300">
-                  <span>Subtotal ({cartItemCount} items):</span>
-                  <span className="font-bold font-mono text-white text-base">${cartTotal.toFixed(2)}</span>
-                </div>
-
-                <button
-                  onClick={handleCheckout}
-                  disabled={checkoutComplete}
-                  className="w-full py-3 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs border border-[#FCD200] transition-all flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  <span>{checkoutComplete ? 'Placing Prime Order...' : `Proceed to Checkout ($${cartTotal.toFixed(2)})`}</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 8. AMAZON SIDEBAR DRAWER (☰ ALL) */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 flex bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className="w-80 h-full bg-[#192231] border-r border-slate-700 flex flex-col justify-between text-white p-5 overflow-y-auto">
-            <div>
-              {/* User Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-700">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-                    <User className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-white">
-                      Hello, {customerUser?.isLoggedIn ? customerUser.name : 'Sign In'}
-                    </div>
-                    <div className="text-[10px] text-slate-400">Prime Executive Account</div>
-                  </div>
-                </div>
-                <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
+            {/* Cart footer totals */}
+            <div className="pt-4 border-t border-slate-800 space-y-4 select-none">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400 font-medium">Subtotal:</span>
+                <span className="font-mono font-bold text-white text-sm">${cartTotal.toFixed(2)}</span>
               </div>
 
-              {/* Departments Navigation */}
-              <div className="py-4 space-y-4 text-xs">
-                <div>
-                  <h4 className="font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-2">
-                    Digital Content & Devices
-                  </h4>
-                  <ul className="space-y-2 text-slate-200">
-                    <li className="hover:text-amber-400 cursor-pointer flex justify-between">NexTrend Studio Audio <ChevronRight className="w-3.5 h-3.5 text-slate-500" /></li>
-                    <li className="hover:text-amber-400 cursor-pointer flex justify-between">Vanguard Smart Wearables <ChevronRight className="w-3.5 h-3.5 text-slate-500" /></li>
-                  </ul>
-                </div>
-
-                <div className="pt-2 border-t border-slate-800">
-                  <h4 className="font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-2">
-                    Shop By Department
-                  </h4>
-                  <ul className="space-y-2 text-slate-200">
-                    {['Electronics & Audio', 'Smart Wearables', 'Fashion & Apparel', 'Home & Kitchen', 'Footwear'].map((dept, i) => (
-                      <li
-                        key={i}
-                        onClick={() => {
-                          setActiveCategory(dept);
-                          setSidebarOpen(false);
-                        }}
-                        className="hover:text-amber-400 cursor-pointer flex justify-between"
-                      >
-                        <span>{dept}</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="pt-4 border-t border-slate-700 text-xs">
               <button
-                onClick={() => { setShowSignInView(true); setSidebarOpen(false); }}
-                className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs text-center border border-slate-700"
+                onClick={handleCheckout}
+                disabled={cart.length === 0}
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-b from-[#FFD814] to-[#F7CA00] hover:from-[#F7CA00] hover:to-[#E8BD00] text-slate-950 font-bold text-xs shadow-md border border-[#FCD200] active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {customerUser?.isLoggedIn ? 'Switch Amazon / NexTrend Account' : 'Sign In to NexTrend'}
+                <span>Proceed to Checkout</span>
               </button>
             </div>
           </div>
@@ -815,7 +1461,6 @@ export const EcommerceLanding = () => {
 
       {/* 9. AMAZON MULTI-COLUMN FOOTER */}
       <footer className="mt-16 bg-[#232f3e] text-slate-300 text-xs">
-        {/* Back to top */}
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           className="w-full py-3.5 bg-[#37475a] hover:bg-[#485769] text-center font-semibold text-xs text-white transition-colors"
@@ -866,11 +1511,10 @@ export const EcommerceLanding = () => {
           </div>
         </div>
 
-        {/* Footer Bottom Logo & Copyright */}
         <div className="border-t border-slate-700/60 bg-[#131921] py-8 text-center space-y-4">
           <div className="flex items-center justify-center gap-2">
-            <span className="font-heading font-black text-xl tracking-tight text-white">nex</span>
-            <span className="font-heading font-black text-xl tracking-tight text-[#febd69]">trend</span>
+            <span className="font-heading font-black text-xl tracking-tight text-white font-sans">nex</span>
+            <span className="font-heading font-black text-xl tracking-tight text-[#febd69] font-sans">trend</span>
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 text-[11px] text-slate-400">
@@ -884,6 +1528,7 @@ export const EcommerceLanding = () => {
           </p>
         </div>
       </footer>
+
     </div>
   );
 };

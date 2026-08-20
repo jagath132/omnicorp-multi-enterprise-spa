@@ -12,12 +12,20 @@ export const AuthProvider = ({ children }) => {
   // Master Executive User session
   const [masterUser, setMasterUser] = useState(() => {
     const saved = localStorage.getItem('omnicorp_master_user');
-    return saved ? JSON.parse(saved) : {
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...parsed, isLoggedIn: true };
+      } catch (e) {
+        // ignore parsing errors
+      }
+    }
+    return {
       name: 'Alexander Sterling',
       email: 'alexander.s@omnicorpgroup.com',
       role: 'Group Chairman & Chief Executive',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-      isLoggedIn: false,
+      isLoggedIn: true,
       lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
   });
@@ -150,12 +158,12 @@ export const AuthProvider = ({ children }) => {
     setBusinessSessions(freshSessions);
     localStorage.removeItem('omnicorp_business_sessions');
 
-    const updated = { ...masterUser, isLoggedIn: false };
+    const updated = { ...masterUser, isLoggedIn: true };
     setMasterUser(updated);
     localStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
     setCurrentView('hub');
     localStorage.setItem('omnicorp_view', 'hub');
-    addToast('Executive session ended.', 'info');
+    addToast('Reset all business sessions.', 'info');
   };
 
   return (

@@ -10,7 +10,6 @@ import { EcommerceLanding } from './components/ecommerce/EcommerceLanding';
 import { EcommerceOwnerLogin } from './components/ecommerce/EcommerceOwnerLogin';
 import { VoltDriveLanding } from './components/voltdrive/VoltDriveLanding';
 import { VoltDriveOwnerLogin } from './components/voltdrive/VoltDriveOwnerLogin';
-import { MasterLogin } from './components/auth/MasterLogin';
 
 const MainLayout = () => {
   const { 
@@ -21,15 +20,6 @@ const MainLayout = () => {
     navigateTo 
   } = useAuth();
 
-  // 1. MASTER LOGIN STAGE: If owner is not authenticated into the Master Hub
-  if (!masterUser?.isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-blue-500 selection:text-white">
-        <MasterLogin />
-        <ToastContainer />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-blue-500 selection:text-white">

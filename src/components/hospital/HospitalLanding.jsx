@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { hospitalData } from '../../data/businessData';
-import { HospitalLogin } from './HospitalLogin';
 import { 
   Activity, 
   HeartPulse, 
@@ -17,7 +16,6 @@ import {
   ChevronRight,
   X,
   User,
-  LogIn,
   LogOut
 } from 'lucide-react';
 
@@ -32,7 +30,6 @@ const deptIcons = {
 
 export const HospitalLanding = () => {
   const { navigateTo, addToast, logoutFromBusiness } = useAuth();
-  const [showLoginView, setShowLoginView] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [bookingForm, setBookingForm] = useState({
     patientName: '',
@@ -53,9 +50,6 @@ export const HospitalLanding = () => {
     }, 2500);
   };
 
-  if (showLoginView) {
-    return <HospitalLogin onBackToHospital={() => setShowLoginView(false)} />;
-  }
 
   return (
     <div className="min-h-screen pb-24 animate-in fade-in duration-300">
@@ -75,20 +69,11 @@ export const HospitalLanding = () => {
               <span className="text-slate-300 font-medium">ER Beds: 12 Available</span>
             </div>
             
-            {/* Patient & Staff Portal Login Button */}
-            <button
-              onClick={() => setShowLoginView(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-md transition-all"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Portal Login</span>
-            </button>
-
             <button
               onClick={() => logoutFromBusiness('hospital')}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-rose-400 font-semibold transition-colors"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/60 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 text-slate-300 hover:text-rose-400 text-xs font-bold shadow-md shadow-black/20 transition-all duration-200 group active:scale-95"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
               <span>Sign Out</span>
             </button>
           </div>

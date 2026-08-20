@@ -12,7 +12,6 @@ import {
   Calendar, 
   Clock, 
   MapPin, 
-  Calculator, 
   Sparkles, 
   CheckCircle2, 
   ChevronRight, 
@@ -22,7 +21,13 @@ import {
   Fuel,
   Leaf,
   LogIn,
-  LogOut
+  LogOut,
+  Navigation,
+  Wind,
+  Thermometer,
+  Sliders,
+  Radio,
+  PlugZap
 } from 'lucide-react';
 
 export const VoltDriveLanding = () => {
@@ -44,14 +49,43 @@ export const VoltDriveLanding = () => {
   });
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
-  // Fleet Leasing Calculator State
-  const [fleetSize, setFleetSize] = useState(10);
-  const [selectedModelIndex, setSelectedModelIndex] = useState(0);
-  const [leaseTerm, setLeaseTerm] = useState(36); // months
+  // Range Calculator State
+  const [rangeState, setRangeState] = useState({
+    selectedVehicleIdx: 0,
+    dailyKm: 80,
+    drivingStyle: 'normal', // 'eco' | 'normal' | 'sport'
+    acUsage: 'moderate',    // 'off' | 'moderate' | 'full'
+    terrain: 'city',        // 'city' | 'highway' | 'mixed'
+  });
+
+  // Charging Station Filter State
+  const [chargingFilter, setChargingFilter] = useState('All');
 
   const filteredVehicles = selectedCategory === 'All Vehicles'
     ? voltdriveData.vehicles
     : voltdriveData.vehicles.filter(v => v.category === selectedCategory);
+
+  // Range Calculator Logic
+  const rangeBaseKm = [520, 480, 560, 430]; // base WLTP range per vehicle model in km
+  const styleMultiplier = rangeState.drivingStyle === 'eco' ? 1.12 : rangeState.drivingStyle === 'sport' ? 0.78 : 1.0;
+  const acMultiplier = rangeState.acUsage === 'off' ? 1.06 : rangeState.acUsage === 'full' ? 0.88 : 1.0;
+  const terrainMultiplier = rangeState.terrain === 'city' ? 0.92 : rangeState.terrain === 'highway' ? 1.05 : 0.98;
+  const estimatedRangeKm = Math.round(
+    rangeBaseKm[rangeState.selectedVehicleIdx] * styleMultiplier * acMultiplier * terrainMultiplier
+  );
+  const daysPerCharge = Math.floor(estimatedRangeKm / rangeState.dailyKm);
+  const annualChargeCost = Math.round((365 / (daysPerCharge || 1)) * 12); // ~$12 per full charge
+
+  // Mock Charging Stations
+  const chargingStations = [
+    { id: 1, name: 'VoltDrive Supercharger - Manhattan Hub', type: 'Supercharger', power: '350 kW', available: 6, total: 8, distance: '0.4 mi', status: 'Available', waitTime: null },
+    { id: 2, name: 'NexCharge Express - Midtown West', type: 'DC Fast Charge', power: '150 kW', available: 2, total: 6, distance: '1.2 mi', status: 'Busy', waitTime: '~12 min' },
+    { id: 3, name: 'GreenGrid Level 2 - Columbus Circle', type: 'Level 2 AC', power: '22 kW', available: 4, total: 4, distance: '1.8 mi', status: 'Available', waitTime: null },
+    { id: 4, name: 'VoltDrive Supercharger - Brooklyn Bridge', type: 'Supercharger', power: '350 kW', available: 0, total: 10, distance: '3.1 mi', status: 'Full', waitTime: '~25 min' },
+    { id: 5, name: 'OmniCharge Corporate Depot - FiDi', type: 'DC Fast Charge', power: '200 kW', available: 3, total: 5, distance: '3.9 mi', status: 'Available', waitTime: null },
+    { id: 6, name: 'EcoPlug Level 2 - Central Park South', type: 'Level 2 AC', power: '11 kW', available: 1, total: 3, distance: '0.9 mi', status: 'Busy', waitTime: '~8 min' },
+  ];
+  const filteredStations = chargingFilter === 'All' ? chargingStations : chargingStations.filter(s => s.type === chargingFilter);
 
   const handleTestDriveSubmit = (e) => {
     e.preventDefault();
@@ -68,13 +102,6 @@ export const VoltDriveLanding = () => {
     setBookingForm(prev => ({ ...prev, vehicleId: vehicle.id }));
     setTestDriveModal(true);
   };
-
-  // Leasing calculations
-  const baseMonthly = selectedModelIndex === 0 ? 1190 : selectedModelIndex === 1 ? 890 : selectedModelIndex === 2 ? 1450 : 549;
-  const termDiscount = leaseTerm === 48 ? 0.90 : leaseTerm === 36 ? 0.95 : 1.0;
-  const monthlyPerVehicle = Math.round(baseMonthly * termDiscount);
-  const totalMonthlyFleet = monthlyPerVehicle * fleetSize;
-  const annualFuelSavings = Math.round(fleetSize * 3200); // approx $3,200 saved per EV/year vs petrol
 
   if (showLoginView) {
     return <VoltDriveLogin onBackToShowroom={() => setShowLoginView(false)} />;
@@ -100,9 +127,9 @@ export const VoltDriveLanding = () => {
 
             <button
               onClick={() => logoutFromBusiness('voltdrive')}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-rose-400 font-semibold transition-colors"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/60 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/30 text-slate-300 hover:text-rose-400 text-xs font-bold shadow-md shadow-black/20 transition-all duration-200 group active:scale-95"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200" />
               <span>Sign Out</span>
             </button>
           </div>
@@ -128,16 +155,6 @@ export const VoltDriveLanding = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                document.getElementById('fleet-calculator')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            >
-              <Calculator className="w-3.5 h-3.5" />
-              <span>Fleet Lease Estimator</span>
-            </button>
-
             <button
               onClick={() => openDriveModal(voltdriveData.vehicles[0])}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold shadow-md shadow-cyan-500/25 flex items-center gap-1.5 transition-all"
@@ -319,187 +336,221 @@ export const VoltDriveLanding = () => {
             ))}
           </div>
         </div>
-
-        {/* 5. INTERACTIVE FLEET LEASING ESTIMATOR */}
-        <div id="fleet-calculator" className="mb-16">
+        {/* 5. REAL-TIME RANGE CALCULATOR */}
+        <div className="mb-16">
           <div className="glass-panel border border-cyan-500/30 rounded-3xl p-8 sm:p-10 shadow-2xl">
-            <div className="max-w-3xl mb-8">
+            <div className="mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-3">
-                <Calculator className="w-3.5 h-3.5" />
-                <span>Commercial & Enterprise Fleet Estimator</span>
+                <Gauge className="w-3.5 h-3.5" />
+                <span>Intelligent Range Estimator</span>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-heading font-extrabold text-white">
-                Calculate Corporate EV Fleet Lease & Fuel Savings
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Customize your enterprise fleet volume, vehicle model, and lease tenure to see real-time zero-emission savings.
-              </p>
+              <h3 className="text-2xl sm:text-3xl font-heading font-extrabold text-white">Real-Time EV Range Calculator</h3>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">Adjust your driving profile to get a personalized range estimate for your selected model.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Controls */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Fleet Size Slider */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs font-bold text-slate-300">Fleet Size (Number of Vehicles)</label>
-                    <span className="text-base font-bold font-mono text-cyan-400">{fleetSize} EVs</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="100"
-                    value={fleetSize}
-                    onChange={(e) => setFleetSize(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                    <span>1 Vehicle (VIP)</span>
-                    <span>25 Fleet</span>
-                    <span>50 Logistics</span>
-                    <span>100+ Enterprise</span>
-                  </div>
-                </div>
 
-                {/* Model Selection */}
+                {/* Vehicle Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-2">Selected EV Model</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block text-xs font-bold text-slate-300 mb-2">Select Vehicle Model</label>
+                  <div className="grid grid-cols-2 gap-3">
                     {voltdriveData.vehicles.map((v, idx) => (
                       <button
                         key={v.id}
-                        type="button"
-                        onClick={() => setSelectedModelIndex(idx)}
+                        onClick={() => setRangeState(prev => ({ ...prev, selectedVehicleIdx: idx }))}
                         className={`p-3 rounded-2xl border text-left transition-all ${
-                          selectedModelIndex === idx
+                          rangeState.selectedVehicleIdx === idx
                             ? 'bg-cyan-500/10 border-cyan-500 text-white shadow-md'
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
                         <div className="font-bold text-xs text-white">{v.name}</div>
-                        <div className="text-[11px] text-cyan-400 font-mono mt-0.5">{v.leasePrice} base</div>
+                        <div className="text-[11px] text-cyan-400 font-mono mt-0.5">{rangeBaseKm[idx]} km base range</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Lease Term */}
+                {/* Daily Distance */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-2">Lease Duration</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { term: 24, label: '24 Months (Standard)' },
-                      { term: 36, label: '36 Months (Save 5%)' },
-                      { term: 48, label: '48 Months (Save 10%)' }
-                    ].map((item) => (
-                      <button
-                        key={item.term}
-                        type="button"
-                        onClick={() => setLeaseTerm(item.term)}
-                        className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
-                          leaseTerm === item.term
-                            ? 'bg-cyan-500 text-slate-950 font-bold border-cyan-400 shadow-md'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-slate-300">Daily Driving Distance</label>
+                    <span className="text-base font-bold font-mono text-cyan-400">{rangeState.dailyKm} km/day</span>
+                  </div>
+                  <input
+                    type="range" min="10" max="300" step="5"
+                    value={rangeState.dailyKm}
+                    onChange={(e) => setRangeState(prev => ({ ...prev, dailyKm: Number(e.target.value) }))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                    <span>10 km (City commute)</span><span>150 km (Long haul)</span><span>300 km (Road trip)</span>
+                  </div>
+                </div>
+
+                {/* Driving Style / AC / Terrain */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-2"><Wind className="w-3 h-3 inline mr-1" />Driving Style</label>
+                    <div className="flex flex-col gap-2">
+                      {[['eco','🌿 Eco'],['normal','⚡ Normal'],['sport','🏎 Sport']].map(([val, label]) => (
+                        <button key={val} onClick={() => setRangeState(prev => ({ ...prev, drivingStyle: val }))}
+                          className={`py-2 rounded-xl border text-xs font-semibold transition-all ${
+                            rangeState.drivingStyle === val ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                          }`}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-2"><Thermometer className="w-3 h-3 inline mr-1" />AC / Climate</label>
+                    <div className="flex flex-col gap-2">
+                      {[['off','❄ AC Off'],['moderate','🌤 Moderate'],['full','🔥 Full Blast']].map(([val, label]) => (
+                        <button key={val} onClick={() => setRangeState(prev => ({ ...prev, acUsage: val }))}
+                          className={`py-2 rounded-xl border text-xs font-semibold transition-all ${
+                            rangeState.acUsage === val ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                          }`}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-2"><Navigation className="w-3 h-3 inline mr-1" />Road Type</label>
+                    <div className="flex flex-col gap-2">
+                      {[['city','🏙 City'],['mixed','🛣 Mixed'],['highway','🛤 Highway']].map(([val, label]) => (
+                        <button key={val} onClick={() => setRangeState(prev => ({ ...prev, terrain: val }))}
+                          className={`py-2 rounded-xl border text-xs font-semibold transition-all ${
+                            rangeState.terrain === val ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                          }`}>{label}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Live Output Card */}
-              <div className="bg-slate-950 rounded-3xl p-6 border border-cyan-500/40 flex flex-col justify-between shadow-xl space-y-6">
+              {/* Live Output */}
+              <div className="bg-slate-950 rounded-3xl p-6 border border-cyan-500/40 flex flex-col justify-between shadow-xl space-y-5">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-cyan-400 tracking-wider">Estimated Fleet Cost</span>
-                  <div className="text-3xl font-extrabold font-heading text-white mt-1">
-                    ${totalMonthlyFleet.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/ month</span>
+                  <span className="text-[10px] uppercase font-bold text-cyan-400 tracking-wider">Estimated Range</span>
+                  <div className="text-5xl font-extrabold font-heading text-white mt-2">
+                    {estimatedRangeKm} <span className="text-lg text-slate-400 font-normal">km</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    ${monthlyPerVehicle.toLocaleString()}/mo per vehicle on a {leaseTerm}-month lease.
-                  </p>
+                  <p className="text-xs text-slate-400 mt-1">{Math.round(estimatedRangeKm * 0.621)} miles per full charge</p>
 
-                  <div className="mt-6 pt-6 border-t border-slate-800 space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 text-slate-300">
-                        <Leaf className="w-4 h-4 text-emerald-400" />
-                        <span>Annual Gas Savings:</span>
-                      </span>
-                      <span className="font-mono font-bold text-emerald-400 text-sm">
-                        +${annualFuelSavings.toLocaleString()} USD
-                      </span>
+                  {/* Range Bar */}
+                  <div className="mt-4">
+                    <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                      <span>0</span><span>{rangeBaseKm[rangeState.selectedVehicleIdx]} km (Max)</span>
                     </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 text-slate-300">
-                        <BatteryCharging className="w-4 h-4 text-cyan-400" />
-                        <span>Supercharger Credits:</span>
-                      </span>
-                      <span className="font-semibold text-white">Included Unlimited</span>
+                    <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+                        style={{ width: `${Math.min(100, (estimatedRangeKm / rangeBaseKm[rangeState.selectedVehicleIdx]) * 100)}%` }}
+                      />
                     </div>
+                  </div>
 
+                  <div className="mt-5 pt-5 border-t border-slate-800 space-y-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5 text-slate-300">
-                        <ShieldCheck className="w-4 h-4 text-blue-400" />
-                        <span>Bumper-to-Bumper Care:</span>
-                      </span>
-                      <span className="font-semibold text-white">Full 24/7 Coverage</span>
+                      <span className="flex items-center gap-1.5 text-slate-300"><BatteryCharging className="w-4 h-4 text-cyan-400" />Days per charge:</span>
+                      <span className="font-mono font-bold text-white text-sm">{daysPerCharge > 0 ? `${daysPerCharge} day${daysPerCharge > 1 ? 's' : ''}` : '< 1 day'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-slate-300"><Leaf className="w-4 h-4 text-emerald-400" />Annual charge cost:</span>
+                      <span className="font-mono font-bold text-emerald-400 text-sm">~${annualChargeCost}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-slate-300"><TrendingUp className="w-4 h-4 text-amber-400" />vs Petrol savings:</span>
+                      <span className="font-mono font-bold text-amber-400 text-sm">+${Math.round(annualChargeCost * 3.8).toLocaleString()}/yr</span>
                     </div>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => {
-                    addToast(`Commercial Fleet Proposal for ${fleetSize} vehicles submitted to enterprise desk!`, 'success');
-                  }}
+                  onClick={() => addToast(`Range profile saved for ${voltdriveData.vehicles[rangeState.selectedVehicleIdx]?.name}!`, 'success')}
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all"
                 >
-                  Generate Official Fleet Proposal
+                  Save My Range Profile
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 6. ENTERPRISE FLEET PACKAGES */}
+        {/* 6. NEARBY CHARGING STATION FINDER */}
         <div className="mb-12">
-          <div className="mb-6">
-            <h3 className="text-2xl font-heading font-bold text-white">Corporate Enterprise Packages</h3>
-            <p className="text-xs text-slate-400">Turnkey electric mobility solutions tailored for corporate executives and logistics</p>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-heading font-bold text-white">Nearby Charging Stations</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Live availability of VoltDrive-network chargers near your current location</p>
+            </div>
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap gap-2">
+              {['All', 'Supercharger', 'DC Fast Charge', 'Level 2 AC'].map(f => (
+                <button key={f} onClick={() => setChargingFilter(f)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    chargingFilter === f ? 'bg-cyan-500 text-slate-950 font-bold' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                  }`}>{f}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {voltdriveData.fleetPackages.map((pkg, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-900/80 rounded-3xl p-6 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 inline-block mb-3">
-                    {pkg.size}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {filteredStations.map(station => {
+              const availPct = (station.available / station.total) * 100;
+              const statusColor = station.status === 'Available' ? 'emerald' : station.status === 'Busy' ? 'amber' : 'rose';
+              return (
+                <div key={station.id} className="bg-slate-900/80 rounded-3xl p-5 border border-slate-800 hover:border-cyan-500/40 transition-all flex flex-col gap-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <PlugZap className={`w-4 h-4 text-${statusColor}-400 shrink-0`} />
+                        <span className={`text-[10px] font-bold uppercase tracking-wider text-${statusColor}-400 px-2 py-0.5 rounded-full bg-${statusColor}-500/10 border border-${statusColor}-500/20`}>
+                          {station.status}{station.waitTime ? ` · ${station.waitTime}` : ''}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-white text-sm leading-tight">{station.name}</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{station.type} · {station.power}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-bold text-cyan-400 font-mono">{station.distance}</div>
+                      <div className="text-[10px] text-slate-500">away</div>
+                    </div>
                   </div>
-                  <h4 className="text-lg font-bold font-heading text-white">{pkg.tier}</h4>
-                  <div className="text-sm font-bold text-cyan-400 font-mono mt-1 mb-4">{pkg.baseRate}</div>
 
-                  <ul className="space-y-2 text-xs text-slate-300">
-                    {pkg.features.map((feat, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Availability Bar */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                      <span>Charger Availability</span>
+                      <span className="font-mono font-bold text-white">{station.available}/{station.total} ports free</span>
+                    </div>
+                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-${statusColor}-500 transition-all`}
+                        style={{ width: `${availPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => addToast(`Navigating to ${station.name}`, 'info')}
+                      className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Navigation className="w-3.5 h-3.5" />Navigate
+                    </button>
+                    <button
+                      onClick={() => addToast(`Reserved a port at ${station.name}!`, 'success')}
+                      disabled={station.status === 'Full'}
+                      className="flex-1 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Reserve Port
+                    </button>
+                  </div>
                 </div>
-
-                <button
-                  onClick={() => addToast(`Enrolled in ${pkg.tier} inquiry`, 'info')}
-                  className="mt-6 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-xs font-semibold transition-colors text-center"
-                >
-                  Inquire Package
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
