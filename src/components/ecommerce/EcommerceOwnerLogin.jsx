@@ -48,7 +48,7 @@ export const EcommerceOwnerLogin = ({ onLoginSuccess, onBack }) => {
     setTimeout(() => {
       setIsLoading(false);
       addToast('Welcome, Founding Director. Store access granted.', 'success');
-      
+
       // Auto sign-in the customer session on the e-commerce storefront
       const userData = {
         name: 'Alexander Sterling',

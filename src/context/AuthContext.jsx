@@ -4,14 +4,39 @@ import { businesses } from '../data/businessData';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Current active view: 'hub' | 'hospital' | 'ecommerce' | 'garments'
+  // Clean up legacy localStorage keys to prevent stale page restores across browser restarts
+  try {
+    localStorage.removeItem('omnicorp_view');
+    localStorage.removeItem('omnicorp_business_sessions');
+  } catch (e) {}
+
+  // Business-specific sessions (Stored in sessionStorage so browser close automatically resets authentication)
+  const [businessSessions, setBusinessSessions] = useState(() => {
+    const saved = sessionStorage.getItem('omnicorp_business_sessions');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {
+      hospital: { isLoggedIn: false, role: 'Chief Medical Officer / Owner', email: 'chief.doctor@auracare.med' },
+      ecommerce: { isLoggedIn: false, role: 'Founder & E-Commerce Director', email: 'executive@nextrend.store' },
+      voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
+    };
+  });
+
+  // Current active view: 'hub' | 'hospital' | 'ecommerce' | 'voltdrive'
+  // Using sessionStorage ensures that closing the mobile browser or tab resets back to 'hub' (all business cards)
   const [currentView, setCurrentView] = useState(() => {
-    return localStorage.getItem('omnicorp_view') || 'hub';
+    const savedView = sessionStorage.getItem('omnicorp_view');
+    // If no view is saved, or if saved view is an unauthenticated business sub-portal, return to 'hub'
+    if (!savedView || savedView === 'hub') return 'hub';
+    return savedView;
   });
 
   // Master Executive User session
   const [masterUser, setMasterUser] = useState(() => {
-    const saved = localStorage.getItem('omnicorp_master_user');
+    const saved = sessionStorage.getItem('omnicorp_master_user');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -28,13 +53,6 @@ export const AuthProvider = ({ children }) => {
       isLoggedIn: true,
       lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-  });
-
-  // Business-specific sessions (Requires division owner login first before website access)
-  const [businessSessions, setBusinessSessions] = useState({
-    hospital: { isLoggedIn: false, role: 'Chief Medical Officer / Owner', email: 'chief.doctor@auracare.med' },
-    ecommerce: { isLoggedIn: false, role: 'Founder & E-Commerce Director', email: 'executive@nextrend.store' },
-    voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
   });
 
   // Active Auth Modal state
@@ -61,7 +79,7 @@ export const AuthProvider = ({ children }) => {
   // Switch view with smooth scroll to top
   const navigateTo = (viewId) => {
     setCurrentView(viewId);
-    localStorage.setItem('omnicorp_view', viewId);
+    sessionStorage.setItem('omnicorp_view', viewId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (viewId !== 'hub') {
@@ -101,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       }
     };
     setBusinessSessions(updatedSessions);
-    localStorage.setItem('omnicorp_business_sessions', JSON.stringify(updatedSessions));
+    sessionStorage.setItem('omnicorp_business_sessions', JSON.stringify(updatedSessions));
     closeBusinessLoginModal();
     navigateTo(businessId);
     addToast(`Authenticated successfully into ${businesses.find(b => b.id === businessId)?.name}`, 'success');
@@ -118,6 +136,7 @@ export const AuthProvider = ({ children }) => {
       }
     };
     setBusinessSessions(updatedSessions);
+    sessionStorage.setItem('omnicorp_business_sessions', JSON.stringify(updatedSessions));
     navigateTo('hub');
     addToast(`Signed out of ${businesses.find(b => b.id === businessId)?.name}`, 'warning');
   };
@@ -131,7 +150,7 @@ export const AuthProvider = ({ children }) => {
       voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
     };
     setBusinessSessions(freshSessions);
-    localStorage.removeItem('omnicorp_business_sessions');
+    sessionStorage.removeItem('omnicorp_business_sessions');
 
     const updated = {
       name: 'Alexander Sterling',
@@ -142,9 +161,9 @@ export const AuthProvider = ({ children }) => {
       lastLogin: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setMasterUser(updated);
-    localStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
+    sessionStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
     setCurrentView('hub');
-    localStorage.setItem('omnicorp_view', 'hub');
+    sessionStorage.setItem('omnicorp_view', 'hub');
     addToast('Welcome back, Executive Chairman!', 'success');
   };
 
@@ -156,13 +175,13 @@ export const AuthProvider = ({ children }) => {
       voltdrive: { isLoggedIn: false, role: 'VP of Automotive & Fleet Operations', email: 'fleet.director@voltdrive.com' },
     };
     setBusinessSessions(freshSessions);
-    localStorage.removeItem('omnicorp_business_sessions');
+    sessionStorage.removeItem('omnicorp_business_sessions');
 
     const updated = { ...masterUser, isLoggedIn: true };
     setMasterUser(updated);
-    localStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
+    sessionStorage.setItem('omnicorp_master_user', JSON.stringify(updated));
     setCurrentView('hub');
-    localStorage.setItem('omnicorp_view', 'hub');
+    sessionStorage.setItem('omnicorp_view', 'hub');
     addToast('Reset all business sessions.', 'info');
   };
 
